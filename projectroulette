@@ -1,0 +1,5 @@
+#!/usr/bin/env python
+
+import randomline
+
+print randomline.get_random_line("/home/tedks/Documents/personal/projects.txt")
