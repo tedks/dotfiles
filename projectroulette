@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 
-import randomline
+import sys
 
-print randomline.get_random_line("/home/tedks/Documents/personal/projects.txt")
+sys.path.append("/home/tedks/Projects/randomline/")
+
+from randomline import *
+
+projects_file = "/home/tedks/Documents/personal/projects.txt"
+
+if __name__ == "__main__":
+    project = get_random_line(projects_file)[2:]
+    print "Work on %s" % project
+    
+    
+
