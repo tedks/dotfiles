@@ -2,15 +2,21 @@
 
 import sys, array
 
-# get the target file lines
-target_fname = sys.argv[1]
-lines = open(target_fname, "r").readlines()
+def get_random_line(target_fname):
+    # get the target file lines
+    linef = open(target_fname, "r")
+    lines = linef.readlines()
+    linef.close()
+    
+    # get the random number
+    index = array.array('L')
+    rand_source = open("/dev/random", "r")
+    index.fromfile(rand_source, 1)
+    
+    # output
+    offset = (index[0] % len(lines))
+    return lines[offset]
 
-# get the random number
-index = array.array('L')
-rand_source = open("/dev/random", "r")
-index.fromfile(rand_source, 1)
-
-# output
-offset = (index[0] % len(lines))
-print lines[offset]
+if __name__ == "__main__":
+    print get_random_line(sys.argv[1])
+    
