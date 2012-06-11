@@ -15,7 +15,7 @@ def get_random_line(target_fname):
     
     # output
     offset = (index[0] % len(lines))
-    return lines[offset]
+    return lines[offset].strip()
 
 if __name__ == "__main__":
     print get_random_line(sys.argv[1])
