@@ -1,0 +1,26 @@
+#!/bin/bash
+
+
+INITFILE=".work_init"
+WORKDIR="workdir"
+
+project=`basename $1`
+
+project_path=`ls -d ~/Projects/${1}`
+
+if [ -e "$project_path/$INITFILE" ]; then
+    pushd $project_path
+    . $project_path/$INITFILE
+    popd
+fi
+
+
+if [ -d "$project_path/$WORKDIR" ]; then
+    project_path="$project_path/$WORKDIR"
+fi
+
+pushd $project_path
+
+byobu -xRS $project
+
+popd

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+name="$1"
+path="$HOME/Projects"
+
+pushd $path
+
+bzr init-repo $name
+
+pushd $name
+
+bzr init trunk
+ln -s trunk workdir
+
+popd
+popd
+
+echo "Project $name created under $path."
