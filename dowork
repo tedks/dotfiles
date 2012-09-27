@@ -14,6 +14,13 @@ if [ -e "$project_path/$INITFILE" ]; then
     popd
 fi
 
+if [[ $hamster_track || $2 ]]; then
+    if [ $hamster_string ]; then
+	hamster-cli start "$hamster_string"
+    else
+	hamster-cli start "$project@projects"
+    fi
+fi
 
 if [ -d "$project_path/$WORKDIR" ]; then
     project_path="$project_path/$WORKDIR"
