@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gtcli list workdir | awk '{print $2}'
