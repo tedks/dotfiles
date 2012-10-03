@@ -1,3 +1,18 @@
-#!/bin/bash
+#!/usr/bin/python
+command = "gtcli list workdue"
 
-gtcli list workdir | awk '{print $2}'
+import os
+
+pipe = os.popen(command)
+
+tasks = {}
+for line in pipe.readlines():
+    if ":" in line:
+        continue
+    else:
+        chunks = filter(lambda s: s != '', line.split(" "))
+        tasks[chunks[0]] = " ".join(chunks[1:])
+for (k,v) in tasks.iteritems():
+    print v
+
+    
