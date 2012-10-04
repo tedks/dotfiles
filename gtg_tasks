@@ -11,7 +11,9 @@ for line in pipe.readlines():
         continue
     else:
         chunks = filter(lambda s: s != '', line.split(" "))
-        tasks[chunks[0]] = " ".join(chunks[1:])
+        out = " ".join(chunks[1:])
+        if not out.isspace():
+            tasks[chunks[0]] = out.strip()
 for (k,v) in tasks.iteritems():
     print v
 
