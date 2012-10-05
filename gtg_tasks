@@ -15,6 +15,6 @@ for line in pipe.readlines():
         if not out.isspace():
             tasks[chunks[0]] = out.strip()
 for (k,v) in tasks.iteritems():
-    print v
+    print "\t" + v
 
     
