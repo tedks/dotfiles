@@ -14,7 +14,11 @@ for line in pipe.readlines():
         out = " ".join(chunks[1:])
         if not out.isspace():
             tasks[chunks[0]] = out.strip()
-for (k,v) in tasks.iteritems():
-    print "\t" + v
+if len(tasks.keys()) > 0:
+    for (k,v) in tasks.iteritems():
+        print "\t" + v
+else:
+    print "\tNo immediate pending tasks."
+
 
     
