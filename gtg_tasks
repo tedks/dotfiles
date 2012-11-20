@@ -1,16 +1,18 @@
 #!/usr/bin/python
 command = "gtcli list workdue"
 
-import os
+import os, re
 
 pipe = os.popen(command)
 
 tasks = {}
+whitespace = re.compile('^\W*$')
 for line in pipe.readlines():
-    if ":" in line:
+    line = line.strip()
+    if line[-1] == ':':
         continue
     else:
-        chunks = filter(lambda s: s != '', line.split(" "))
+        chunks = filter(lambda s: not whitespace.match(s), line.split(" "))
         out = " ".join(chunks[1:])
         if not out.isspace():
             tasks[chunks[0]] = out.strip()
