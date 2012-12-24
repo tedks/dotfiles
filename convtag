@@ -27,6 +27,6 @@ if __name__ == "__main__":
         
     ofnames = ['\'' + fn.replace("webm", "ogg") + '\'' for fn in filenames]
     for of in ofnames:
-        os.system("vorbiscomment -w --tag \'album=YouTube' %s" % of)
+        os.system("vorbiscomment -w --tag \'album=Singles' %s" % of)
     os.system("exfalso %s" % ofnames)
         
