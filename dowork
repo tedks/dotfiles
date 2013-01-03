@@ -14,7 +14,7 @@ if [ -e "$project_path/$INITFILE" ]; then
     popd
 fi
 
-if [[ $hamster_track || $2 ]]; then
+if [[ $hamster_track || $2 == "-t" ]]; then
     if [ $hamster_string ]; then
 	hamster-cli start "$hamster_string"
     else
