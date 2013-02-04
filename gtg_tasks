@@ -1,5 +1,6 @@
 #!/usr/bin/python
 command = "gtcli list workdue"
+display_lines = 5
 
 import os, re
 
@@ -16,9 +17,14 @@ for line in pipe.readlines():
         out = " ".join(chunks[1:])
         if not out.isspace():
             tasks[chunks[0]] = out.strip()
-if len(tasks.keys()) > 0:
-    for (k,v) in tasks.iteritems():
+keys = tasks.keys()
+
+if len(keys) > 0:
+    for i in range(0, display_lines):
+        v = tasks[keys[i]]
         print "\t" + v
+    if len(keys) > display_lines:
+        print "...and %d more unshown.\n" % (len(keys) - display_lines)
 else:
     print "\tNo immediate pending tasks."
 
