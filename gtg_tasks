@@ -2,9 +2,12 @@
 command = "gtcli list workdue"
 display_lines = 5
 
-import os, re
+import os, re, sys
 
 pipe = os.popen(command)
+
+if len(sys.argv) > 1 and sys.argv[1] == "-l":
+    display_lines = -1
 
 tasks = {}
 whitespace = re.compile('^\W*$')
@@ -22,12 +25,12 @@ keys = tasks.keys()
 if len(keys) > 0:
     printed = 0
     for k in keys:
-        if printed > display_lines:
+        if display_lines > 0 and printed > display_lines:
             break
         v = tasks[k]
         print "\t" + v
         printed += 1
-    if len(keys) > display_lines:
+    if display_lines > 0 and len(keys) > display_lines:
         print "...and %d more unshown.\n" % (len(keys) - display_lines)
 else:
     print "\tNo immediate pending tasks."
