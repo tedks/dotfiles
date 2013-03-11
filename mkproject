@@ -5,6 +5,7 @@ path="$HOME/Projects"
 
 pushd $path
 
+echo "# sourced on dowork" >> .work_init
 bzr init-repo $name
 
 pushd $name
