@@ -1,0 +1,111 @@
+#!/bin/bash -i
+
+virtualenv .
+
+PACKAGES="flask flask-login flask-openid flask-mail flask-sqlalchemy sqlalchemy-migrate flask-whooshalchemy flask-wtf flask-babel flup"
+
+for i in $PACKAGES; do
+    bin/pip install $i
+done
+
+yes | bin/pip uninstall sqlalchemy
+bin/pip install sqlalchemy==0.7.9
+
+
+cat > run.py <<EOF
+#!env/bin/python
+
+from app import app
+app.run(debug=True)
+EOF
+
+cat >config.py <<EOF
+from random import randint
+import os
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+print basedir
+
+CSRF_ENABLED = True
+SECRET_KEY = str(randint(0, 10000000000))
+PREDMARK_THRESHOLD = 1
+
+DB_NAME = 'app.db'
+
+SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, DB_NAME)
+SQLALCHEMY_MIGRATE_REPO = os.path.join(basedir, 'db_repository')
+
+EOF
+
+cat >db_create.py <<EOF
+#!env/bin/python
+from migrate.versioning import api
+from config import SQLALCHEMY_DATABASE_URI
+from config import SQLALCHEMY_MIGRATE_REPO
+from app import db
+import os.path
+
+db.create_all()
+if not os.path.exists(SQLALCHEMY_MIGRATE_REPO):
+    api.create(SQLALCHEMY_MIGRATE_REPO, 'database repository')
+    api.version_control(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO)
+else:
+    api.version_control(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO, 
+                        api.version(SQLALCHEMY_MIGRATE_REPO))
+
+EOF
+
+cat >db_downgrade.py <<EOF
+#!env/bin/python
+from migrate.versioning import api
+from config import SQLALCHEMY_DATABASE_URI
+from config import SQLALCHEMY_MIGRATE_REPO
+
+v = api.db_version(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO)
+
+api.downgrade(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO, v - 1)
+
+print 'Current database version: ' + str(
+    api.db_version(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO))
+EOF
+
+cat >db_migrate.py <<EOF
+#!env/bin/python
+import imp
+from migrate.versioning import api
+from app import db
+from config import SQLALCHEMY_DATABASE_URI
+from config import SQLALCHEMY_MIGRATE_REPO
+
+migration = SQLALCHEMY_MIGRATE_REPO + '/versions/%03d_migration.py' % (api.db_version(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO) + 1)
+tmp_module = imp.new_module('old_model')
+old_model = api.create_model(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO)
+exec old_model in tmp_module.__dict__
+script = api.make_update_script_for_model(SQLALCHEMY_DATABASE_URI, 
+                                          SQLALCHEMY_MIGRATE_REPO, 
+                                          tmp_module.meta, db.metadata)
+open(migration, "wt").write(script)
+
+a = api.upgrade(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO)
+
+print 'New migration saved as ' + migration
+print 'Current database version: ' + \
+    str(api.db_version(SQLALCHEMY_DATABASE_URI,
+                       SQLALCHEMY_MIGRATE_REPO))
+
+EOF
+
+cat >db_upgrade.py <<EOF
+#!env/bin/python
+from migrate.versioning import api
+from config import SQLALCHEMY_DATABASE_URI
+from config import SQLALCHEMY_MIGRATE_REPO
+
+api.upgrade(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO)
+print 'Current database version: ' + str(
+    api.db_version(SQLALCHEMY_DATABASE_URI, SQLALCHEMY_MIGRATE_REPO))
+
+EOF
+
+
+
