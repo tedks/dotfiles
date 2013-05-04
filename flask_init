@@ -1,15 +1,15 @@
 #!/bin/bash -i
 
-virtualenv .
-
+virtualenv env 
+name=$1
 PACKAGES="flask flask-login flask-openid flask-mail flask-sqlalchemy sqlalchemy-migrate flask-whooshalchemy flask-wtf flask-babel flup"
 
 for i in $PACKAGES; do
-    bin/pip install $i
+    env/bin/pip install $i
 done
 
-yes | bin/pip uninstall sqlalchemy
-bin/pip install sqlalchemy==0.7.9
+yes | env/bin/pip uninstall sqlalchemy
+env/bin/pip install sqlalchemy==0.7.9
 
 
 cat > run.py <<EOF
@@ -30,7 +30,7 @@ CSRF_ENABLED = True
 SECRET_KEY = str(randint(0, 10000000000))
 PREDMARK_THRESHOLD = 1
 
-DB_NAME = 'app.db'
+DB_NAME = '$1.db'
 
 SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, DB_NAME)
 SQLALCHEMY_MIGRATE_REPO = os.path.join(basedir, 'db_repository')
@@ -108,4 +108,19 @@ print 'Current database version: ' + str(
 EOF
 
 
+
+chmod +x db_upgrade.py db_migrate.py db_downgrade.py db_create.py run.py
+mkdir -p app/{static,templates}
+
+cat >app/__init__.py <<EOF
+from flask import Flask
+from flask.ext.sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config.from_object('config')
+db = SQLAlchemy(app)
+
+from app import views, models
+
+EOF
 
