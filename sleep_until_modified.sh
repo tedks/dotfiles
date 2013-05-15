@@ -45,16 +45,17 @@ fi
 
 FULLNAME="$1"
 BASENAME=`basename "$FULLNAME"`
-DIRNAME=`dirname "$FULLNAME"`
 
-coproc INOTIFY {
-	inotifywait --recursive --quiet \
-	    --monitor --event close_write,moved_to,create ${DIRNAME} &
-	trap "kill $!" 1 2 3 6 15
-	wait
-}
+# coproc INOTIFY {
+# 	inotifywait --recursive --quiet --monitor --event close_write,moved_to,create ${FULLNAME} &
+# 	trap "kill $!" 1 2 3 6 15
+# 	wait
+# }
 
-trap "kill $INOTIFY_PID" 0 1 2 3 6 15
+# trap "kill $INOTIFY_PID" 0 1 2 3 6 15
 
-# BUG! Não vai funcionar com arquivos contendo caracteres estranhos
-sed --regexp-extended -n "/ (CLOSE_WRITE|MOVED_TO|CREATE)(,CLOSE)? ${BASENAME}\$/q" 0<&${INOTIFY[0]}
+# # BUG! Não vai funcionar com arquivos contendo caracteres estranhos
+# sed --regexp-extended -n "/ (CLOSE_WRITE|MOVED_TO|CREATE)(,CLOSE)? /q" 0<&${INOTIFY[0]}
+
+inotifywait --recursive --quiet ${FULLNAME} 2>&1 >/dev/null
+
