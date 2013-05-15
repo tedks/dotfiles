@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# this is not originally mine, but I have lost the original source.
+# Everything but the linebreak and --recursive in the call to
+# inotifywait are from the original author; hopefully google will find
+# them in time.
+
 SCRIPTNAME=`basename "$0"`
 
 print_help() {
