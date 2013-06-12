@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Run this in the base directory to have it duplicate the directory
+# tree on sunbringer. There's probably a better way to do this,
+# probably with rsync. Currently only works with artists
+
+SERVER=sunbringer
+REMOTE_PATH='/usr/share/warez/Downloads/what.cd'
+LOCAL_MOUNT='/tmp/mount'
+BASEDIR=$1
+ARTIST=`basename "$BASEDIR"`
+
+mkdir -p ${LOCAL_MOUNT}
+sshfs "${SERVER}:${REMOTE_PATH}" ${LOCAL_MOUNT}
+
+# find all subdirectories of base directory
+find "$BASEDIR"/* -type d -printf "%f\0"| xargs -0 -I{} -- \
+    mkdir -p "${LOCAL_MOUNT}/${ARTIST}/{}"
+
+# lazily unmount the local mount point
+fusermount -u -z ${LOCAL_MOUNT}
+
+
