@@ -1,0 +1,30 @@
+#!/usr/bin/python
+
+import sys
+from os import path, system, listdir
+from pipes import quote
+
+BASE_DEST = "/usr/share/warez/Downloads/what.cd"
+
+def add_torrent(tpath, destpath):
+    system("deluge-console \"add -p %s %s\"" % 
+           (quote(destpath), quote(tpath)))
+    
+def whatcd_add_path(artist_rip_dir, dest=None):
+    if not dest:
+        dest = path.join(BASE_DEST, 
+                         path.split(path.dirname(artist_rip_dir))[1])
+    print path.basename(artist_rip_dir)
+    for child in listdir(artist_rip_dir):
+        if path.isdir(path.join(artist_rip_dir, child)):
+            whatcd_add_path(path.join(artist_rip_dir, child),
+                            path.join(dest, child))
+        elif path.splitext(child)[1] == '.torrent':
+            add_torrent(path.join(artist_rip_dir, child), dest)
+        else:
+            continue
+
+if __name__ == '__main__':
+    for d in sys.argv[1:]:
+        whatcd_add_path(d)
+    
