@@ -3,12 +3,14 @@
 import sys
 from os import path, system, listdir
 from pipes import quote
+from time import sleep
 
 BASE_DEST = "/usr/share/warez/Downloads/what.cd"
 
 def add_torrent(tpath, destpath):
     system("deluge-console \"add -p %s %s\"" % 
            (quote(destpath), quote(tpath)))
+    sleep(0.01)
     
 def whatcd_add_path(artist_rip_dir, dest=None):
     if not dest:
