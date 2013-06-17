@@ -7,10 +7,12 @@ from time import sleep
 
 BASE_DEST = "/usr/share/warez/Downloads/what.cd"
 
-def add_torrent(tpath, destpath):
+def add_torrent(tpath, destpath, rename_on_success=False):
     system("deluge-console \"add -p %s %s\"" % 
            (quote(destpath), quote(tpath)))
     sleep(0.01)
+    if rename_on_success:
+        system("mv \"%s\" \"%s\"" % (tpath, tpath+".added"))
     
 def whatcd_add_path(artist_rip_dir, dest=None):
     if not dest:
