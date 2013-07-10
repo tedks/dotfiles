@@ -12,7 +12,7 @@ def add_torrent(tpath, destpath, rename_on_success=False):
            (quote(destpath), quote(tpath)))
     sleep(0.01)
     if rename_on_success:
-        system("mv \"%s\" \"%s\"" % (tpath, tpath+".added"))
+        system("mv \"%s\" \"%s\"" % (quote(tpath), quote(tpath)+".added"))
     
 def whatcd_add_path(artist_rip_dir, dest=None):
     if not dest:
