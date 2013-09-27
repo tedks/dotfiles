@@ -9,7 +9,7 @@ hostname=$1
 shift
 
 cmd="sudo vmbuilder kvm ubuntu --dest /var/lib/libvirt/images/$1 \
- --debug -v \
+ --debug -v -o \
  --hostname $hostname \
  --mem 4096 --cpus 2 \
  --rootsize 20480 \
