@@ -12,8 +12,8 @@ cmd="sudo vmbuilder kvm ubuntu --dest /var/lib/libvirt/images/$1 \
  --debug -v \
  --hostname $hostname \
  --mem 4096 --cpus 2 \
- --rootsize 20480 \ # 20gb
- --arch i386 \ # no need for 64-bit with 4gb ram
+ --rootsize 20480 \
+ --arch i386 \
  --flavour virtual \
  --components main,universe,multiverse,restricted \
  --libvirt qemu:///system \
@@ -29,6 +29,6 @@ while (( "$#" )); do
     shift
 done
 
-bash -c "${cmd} ${addpkg}"
-virsh -c qemu:///system autostart $hostname
+echo bash -c "${cmd} ${addpkg}"
+echo virsh -c qemu:///system autostart $hostname
 
