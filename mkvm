@@ -29,6 +29,6 @@ while (( "$#" )); do
     shift
 done
 
-echo bash -c "${cmd} ${addpkg}"
-echo virsh -c qemu:///system autostart $hostname
+bash -c "${cmd} ${addpkg}"
+virsh -c qemu:///system autostart $hostname
 
