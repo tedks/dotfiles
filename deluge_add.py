@@ -7,15 +7,6 @@ from twisted.internet import reactor
 from deluge.log import setupLogger
 setupLogger()
 
-class DelugeAdder(object):
-    """
-    Create a connection and add a number of torrents to deluge.
-    Starts a Twisted reactor loop.
-    """
-
-    def __init__(self):
-        pass
-
 def validate_filename(f):
     """
     Ensure that the filename f is a real filename and not a directory. 
@@ -25,37 +16,69 @@ def validate_filename(f):
             and f.endswith(".torrent")):
         raise ValueError("Argument must be a torrent file!")
 
-def on_connect_fail(result):
-    print "Connection failed!"
-    print "result:", result
+class DelugeAdder(object):
+    """
+    Create a connection and add a number of torrents to deluge.
+    Starts and stops Twisted reactor loop.
+    """
 
-def add_torrent_on_success(filename, path):
-    def on_success(rslt):
-        print "Successfully connected! Adding torrent {}".format(filename)
-        with open(filename, "r") as fh:
-            filedump = base64.encodestring(fh.read())
-            fh.close()
+    def __init__(self, default_path="/usr/share/warez/Downloads"):
+        self.default_path = default_path
+        self.added_success = True
+        self.connect_success = True
+        self.error_message = ""
 
+    def __disabled_setattr__(self, attr, val):
+        print "Setting attribute {} to {}".format(attr, val)
+        return super(DelugeAdder, self).__setattr__(attr, val)
+    
+    def get_connect_failure_callback(self):
+        def on_connect_fail(res):
+            self.connect_success = False
+            self.error_message = "Couldn't connect"
+            # print "Couldn't connect"
+        return on_connect_fail
+
+    def get_add_success_callback(self):
         def on_add_success(r):
-            print "Added torrent!"
+            self.added_success = True
             client.disconnect()
+            # print "Successfully added torrent"
             reactor.stop()
-            
+        return on_add_success
+
+    def get_add_failure_callback(self):
         def on_add_failure(r):
-            print "Failed!"
+            self.added_success = False
+            self.error_message = "Couldn't add torrent"
+            # print "Failed to add torrent"
+            reactor.stop()
+        return on_add_failure
             
-        client.core.add_torrent_file(
-            filename, filedump, {'download_location': path})\
-                   .addCallback(on_add_success).addErrback(on_add_failure)
-    return on_success
+    def get_connect_success_callback(self, filename, path):
+        def on_connect_success(rslt):
+            self.connect_success = True
+            # print "Successfully connected! Adding torrent {}".format(filename)
+            with open(filename, "r") as fh:
+                filedump = base64.encodestring(fh.read())
+                fh.close()
 
-def add_torrent(filename, path):
-    validate_filename(filename)
+            client.core.add_torrent_file(filename, filedump, 
+                                         {'download_location': path})\
+                       .addCallback(self.get_add_success_callback())\
+                       .addErrback(self.get_add_failure_callback())
+        return on_connect_success
 
-    d = client.connect()
-    d.addCallback(add_torrent_on_success(filename, path))
-    d.addErrback(on_connect_fail)
-    reactor.run()    
+    def add_torrent(self, filename, path=None):
+        validate_filename(filename)
+        # print "Trying to add torrent"
+        d = client.connect()
+        d.addCallbacks(self.get_connect_success_callback(filename, path),
+                       self.get_connect_failure_callback())
+        reactor.run()
+        return self.added_success
 
 if __name__ == "__main__":
-    add_torrent(sys.argv[1], sys.argv[2])
+    da = DelugeAdder()
+    if not da.add_torrent(sys.argv[1], sys.argv[2]):
+        print "Error adding torrent: {}".format(da.error_message)
