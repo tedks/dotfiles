@@ -4,13 +4,15 @@ import sys
 from os import path, system, listdir
 from pipes import quote
 from time import sleep
+from deluge_add import DelugeAdder
 
 BASE_DEST = "/usr/share/warez/Downloads/what.cd"
 
 def add_torrent(tpath, destpath, rename_on_success=False):
-    system("deluge-console \"add -p %s %s\"" % 
-           (quote(destpath), quote(tpath)))
-    sleep(0.01)
+    da = DelugeAdder(BASE_DEST)
+    if not da.add_torrent(tpath, path=destpath):
+        print "Couldn't add torrent {}".format(tpath)
+        return
     if rename_on_success:
         system("mv \"%s\" \"%s\"" % (quote(tpath), quote(tpath)+".added"))
     
