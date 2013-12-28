@@ -3,7 +3,6 @@
 import sys
 from os import path, system, listdir
 from pipes import quote
-from time import sleep
 from deluge_add import DelugeAdder
 
 BASE_DEST = "/usr/share/warez/Downloads/what.cd"
