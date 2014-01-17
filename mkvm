@@ -21,7 +21,7 @@ cmd="sudo vmbuilder kvm ubuntu --dest /var/lib/libvirt/images/$1 \
  --ssh-user-key ~/.ssh/id_rsa.pub --ssh-key ~/.ssh/id_rsa.pub \
  --user $USER \
  --addpkg openssh-server --addpkg avahi-daemon --addpkg etckeeper \
- --addpkg byobu --addpkg nano"
+ --addpkg byobu --addpkg nano --addpkg atool"
 
 # start popping off arguments
 addpkg=""
