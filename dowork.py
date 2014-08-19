@@ -9,8 +9,12 @@ WORKDIR = "workdir"
 
 
 def werk(project, path):
+    assert len(project) > 0
+    assert len(path) > 0
+    assert os.path.exists(project)
+    assert os.path.isdir(project)
     os.chdir(path)
-    subprocess.call("byobu")
+    subprocess.call("byobu -S {}".format(project))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
