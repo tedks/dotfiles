@@ -23,10 +23,11 @@ if __name__ == "__main__":
                  if fn.endswith(SUPPORTED_SUFFIX)]
     for fn in filenames:
         newname = fn.replace("webm", "ogg")
-        os.system("avconv -i \'%s\' -vn -acodec copy \'%s\'" % (fn, newname))
+        os.system("avconv -i \'{}\' -vn -acodec copy \'{}\'".format(fn,
+                                                                    newname))
         
     ofnames = ['\'' + fn.replace("webm", "ogg") + '\'' for fn in filenames]
     for of in ofnames:
-        os.system("vorbiscomment -w --tag \'album=Singles' %s" % of)
-    os.system("exfalso %s" % os.curdir)
+        os.system("vorbiscomment -w --tag \'album=Singles' {}".format(of))
+    os.system("exfalso {}".format(os.curdir))
         
