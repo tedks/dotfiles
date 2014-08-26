@@ -11,12 +11,22 @@ WORKDIR = "workdir"
 def werk(project, path):
     assert len(project) > 0
     assert len(path) > 0
-    assert os.path.exists(project)
-    assert os.path.isdir(project)
+    assert os.path.exists(path), project
+    assert os.path.isdir(path)
+
+    init_path = os.path.join(path, INITFILE)
+
     os.chdir(path)
-    if WORKDIR in os.listdir():
+    if WORKDIR in os.listdir(path):
         os.chdir(os.path.join(path, WORKDIR))
-    subprocess.call("byobu -S {}".format(project))
+
+    launch_string = "byobu -S {}"
+
+    if os.path.exists(init_path):
+        launch_string = "source {} && {}".format(init_path, launch_string)
+    
+    subprocess.call(launch_string.format(project), shell=True)
+
     exit(0)
 
 def project(project):
@@ -29,7 +39,7 @@ def path(project):
     if os.path.abspath(project) == project:
         return project
     else:
-        # pick up here
+        return os.path.join("/home/tedks/Projects", project)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -49,13 +59,4 @@ if __name__ == '__main__':
 
     project = project(args.project)
     path = path(args.project)
-
-
-
-
-
-
-
-
-
-    
+    werk(project, path)
