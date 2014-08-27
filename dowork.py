@@ -23,11 +23,18 @@ def werk(project, path):
     launch_string = "byobu -S {}"
 
     if os.path.exists(init_path):
-        launch_string = "source {} && {}".format(init_path, launch_string)
+        source_script(init_path)
     
     subprocess.call(launch_string.format(project), shell=True)
 
     exit(0)
+
+def source_script(scriptpath):
+    new_env = subprocess.check_output('bash -c "source {}" && env'.format(
+        scriptpath), shell=True)
+    for line in new_env.split('\n'):
+        k, _, v = line.partition('=')
+        os.environ[k] = v
 
 def project(project):
     if os.path.abspath(project) == project:
