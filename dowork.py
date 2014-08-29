@@ -37,12 +37,14 @@ def source_script(scriptpath):
         os.environ[k] = v
 
 def project(project):
+    assert len(project) > 0
     if os.path.abspath(project) == project:
         return os.path.split(project)[-1]
     else:
         return project    
 
 def path(project):
+    assert len(project) > 0
     if os.path.abspath(project) == project:
         return project
     else:
@@ -57,13 +59,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    print("args.project: {} track? {}".format(args.project, args.track))
-    if os.path.abspath(args.project) == args.project:
-        print("is an abspath")
-    else:
-        print("is a relative path")
-        print("project: {}".format(os.path.exists("/home/tedks/Projects/{}".format(args.project))))
-
     project = project(args.project)
     path = path(args.project)
     werk(project, path)
