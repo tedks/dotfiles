@@ -2,53 +2,64 @@
 
 import argparse
 import os
+import shlex
 import subprocess
 
 INITFILE = ".work_init"
 WORKDIR = "workdir"
+PROJECTS = "/home/tedks/Projects"
 
+def path(project):
+    if os.path.isabs(project):
+        return "random", project, project
 
-def werk(project, path):
-    assert len(project) > 0
-    assert len(path) > 0
-    assert os.path.exists(path), project
-    assert os.path.isdir(path)
+    root_project = project.split(os.path.sep)[0]
+    path = os.path.join(PROJECTS, root_project)
+    base_path = path
+    assert os.path.exists(path)
 
-    init_path = os.path.join(path, INITFILE)
-
-    os.chdir(path)
     if WORKDIR in os.listdir(path):
-        os.chdir(os.path.join(path, WORKDIR))
+        path = os.path.join(path, WORKDIR)
+        
+    if os.path.sep in project:
+        rest = os.path.sep.join(project.split(os.path.sep)[1:])
+        path = os.path.join(path, rest)
+        assert os.path.exists(path)
 
+    return root_project, base_path, path
+
+def werk(project):
+    """Project is the logical name of the project to work on and the
+    Hamster task name if hamster integration is enabled.
+
+    String is the original command string. If this contains a 
+
+    """
+    assert len(project) > 0
     launch_string = "byobu -S {}"
+
+    project_name, base_path, work_path = path(project)
+    init_path = os.path.join(base_path, INITFILE)
+
+    os.chdir(work_path)
 
     if os.path.exists(init_path):
         source_script(init_path)
     
-    subprocess.call(launch_string.format(project), shell=True)
-
-    exit(0)
+    launch_list = shlex.split(launch_string)
+    os.execvp(launch_list[0], launch_list)
 
 def source_script(scriptpath):
-    new_env = subprocess.check_output('bash -c "source {}" && env'.format(
-        scriptpath), shell=True)
+    assert len(scriptpath) > 0
+    assert os.path.exists(scriptpath), "scriptpath doesn't exist"
+    
+    new_env = subprocess.check_output('bash -c "source {}"'.format(scriptpath) +
+                                      ' && env',
+                                      shell=True)
+    
     for line in new_env.split('\n'):
         k, _, v = line.partition('=')
         os.environ[k] = v
-
-def project(project):
-    assert len(project) > 0
-    if os.path.abspath(project) == project:
-        return os.path.split(project)[-1]
-    else:
-        return project    
-
-def path(project):
-    assert len(project) > 0
-    if os.path.abspath(project) == project:
-        return project
-    else:
-        return os.path.join("/home/tedks/Projects", project)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -59,6 +70,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    project = project(args.project)
-    path = path(args.project)
-    werk(project, path)
+    werk(args.project)
