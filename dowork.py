@@ -24,7 +24,11 @@ def path(project):
     if os.path.sep in project:
         rest = os.path.sep.join(project.split(os.path.sep)[1:])
         path = os.path.join(path, rest)
-        assert os.path.exists(path)
+        non_workdir_path = os.path.join(base_path, rest)
+        if not os.path.exists(path) \
+           and os.path.exists(non_workdir_path):
+            path = non_workdir_path
+            
 
     return root_project, base_path, path
 
