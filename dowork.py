@@ -32,6 +32,23 @@ def path(project):
 
     return root_project, base_path, path
 
+def byobu_command_string():
+    binary_name = 'byobu'
+    session_name_flag = ''
+    try:
+        backend = open("{}/.byobu/backend".format(os.environ['HOME']))\
+                  .read().split('=')[-1]
+        if backend == 'tmux':
+            session_name_flag = '-L'
+        elif backend == 'screen':
+            session_name_flag = '-S'
+        else:
+            raise ValueError(
+                "Unknown backend {} in ~/.byobu/backend".format(backend))
+    except:
+        session_name_flag = '-L' # byobu defaults to tmux
+    return "{} {} {}".format(binary_name, session_name_flag, '{}')
+
 def werk(project):
     """Project is the logical name of the project to work on and the
     Hamster task name if hamster integration is enabled.
@@ -40,7 +57,7 @@ def werk(project):
 
     """
     assert len(project) > 0
-    launch_string = "byobu -S {}"
+    launch_string = byobu_command_string()
 
     project_name, base_path, work_path = path(project)
     init_path = os.path.join(base_path, INITFILE)
@@ -50,7 +67,7 @@ def werk(project):
     if os.path.exists(init_path):
         source_script(init_path)
     
-    launch_list = shlex.split(launch_string)
+    launch_list = shlex.split(launch_string.format(project_name))
     os.execvp(launch_list[0], launch_list)
 
 def source_script(scriptpath):
