@@ -5,6 +5,13 @@ import os
 import shlex
 import subprocess
 
+try:
+    from hamster.client import Storage as hc
+    from hamster.lib.stuff import Fact
+    have_hamster = True
+except:
+    have_hamster = False
+
 INITFILE = ".work_init"
 WORKDIR = "workdir"
 PROJECTS = "/home/tedks/Projects"
@@ -38,18 +45,23 @@ def byobu_command_string():
     try:
         backend = open("{}/.byobu/backend".format(os.environ['HOME']))\
                   .read().split('=')[-1]
-        if backend == 'tmux':
-            session_name_flag = '-L'
-        elif backend == 'screen':
+        if backend == 'screen':
             session_name_flag = '-S'
         else:
-            raise ValueError(
-                "Unknown backend {} in ~/.byobu/backend".format(backend))
+            session_name_flag = '-L'
     except:
         session_name_flag = '-L' # byobu defaults to tmux
     return "{} {} {}".format(binary_name, session_name_flag, '{}')
 
-def werk(project):
+def hamster_track(project):
+    """Track activity as {project}@projects"""
+    hamster = hc()
+    activity = Fact(project,
+                    category="projects",
+                    description="auto-tracked from dowork.py")
+    hamster.add_fact(activity)
+
+def werk(project, track=False):
     """Project is the logical name of the project to work on and the
     Hamster task name if hamster integration is enabled.
 
@@ -61,6 +73,9 @@ def werk(project):
 
     project_name, base_path, work_path = path(project)
     init_path = os.path.join(base_path, INITFILE)
+
+    if track:
+        hamster_track(project_name)
 
     os.chdir(work_path)
 
@@ -86,9 +101,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("project",
                         help="The project to work on. Must be a directory in ~/Projects.")
-    parser.add_argument("--track", "-t", action="store_true",
+    parser.add_argument("--track", "-t", action="store_true", default=False,
                        help="Track in hamster as <project name>@projects")
-
+    
     args = parser.parse_args()
     
-    werk(args.project)
+    werk(args.project, track=args.track)
