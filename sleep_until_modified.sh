@@ -57,5 +57,5 @@ BASENAME=`basename "$FULLNAME"`
 # # BUG! Não vai funcionar com arquivos contendo caracteres estranhos
 # sed --regexp-extended -n "/ (CLOSE_WRITE|MOVED_TO|CREATE)(,CLOSE)? /q" 0<&${INOTIFY[0]}
 
-inotifywait --recursive --quiet ${FULLNAME} 2>&1 >/dev/null
+inotifywait --event modify --recursive --quiet ${FULLNAME} 2>&1 >/dev/null
 
