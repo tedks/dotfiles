@@ -9,12 +9,12 @@ try:
     from hamster.client import Storage as hc
     from hamster.lib.stuff import Fact
     have_hamster = True
-except:
+except ImportError:
     have_hamster = False
 
 INITFILE = ".work_init"
 WORKDIR = "workdir"
-PROJECTS = "/home/tedks/Projects"
+PROJECTS = "{}/Projects".format(os.environ['HOME'])
 
 def path(project):
     if os.path.isabs(project):
@@ -23,7 +23,9 @@ def path(project):
     root_project = project.split(os.path.sep)[0]
     path = os.path.join(PROJECTS, root_project)
     base_path = path
-    assert os.path.exists(path)
+    
+    if not os.path.exists(path):
+        raise ValueError("Invalid path")
 
     if WORKDIR in os.listdir(path):
         path = os.path.join(path, WORKDIR)
@@ -65,13 +67,15 @@ def werk(project, track=False):
     """Project is the logical name of the project to work on and the
     Hamster task name if hamster integration is enabled.
 
-    String is the original command string. If this contains a 
-
     """
     assert len(project) > 0
     launch_string = byobu_command_string()
 
-    project_name, base_path, work_path = path(project)
+    try:
+        project_name, base_path, work_path = path(project)
+    except ValueError:
+        print("{} is not a path in the project directory.".format(project))
+        exit(1)
     init_path = os.path.join(base_path, INITFILE)
 
     if track:
@@ -101,8 +105,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("project",
                         help="The project to work on. Must be a directory in ~/Projects.")
-    parser.add_argument("--track", "-t", action="store_true", default=False,
-                       help="Track in hamster as <project name>@projects")
+    if have_hamster:
+        parser.add_argument("--track", "-t", action="store_true", default=False,
+                            help="Track in hamster as <project name>@projects")
     
     args = parser.parse_args()
     
