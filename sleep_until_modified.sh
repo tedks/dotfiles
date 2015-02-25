@@ -38,24 +38,5 @@ while [[ "$1" == -* ]] ; do
 	esac
 done
 
-if [ "$#" != 1 ] ; then
-	echo "Incorrect parameters. Use --help for usage instructions."
-	exit 1
-fi
-
-FULLNAME="$1"
-BASENAME=`basename "$FULLNAME"`
-
-# coproc INOTIFY {
-# 	inotifywait --recursive --quiet --monitor --event close_write,moved_to,create ${FULLNAME} &
-# 	trap "kill $!" 1 2 3 6 15
-# 	wait
-# }
-
-# trap "kill $INOTIFY_PID" 0 1 2 3 6 15
-
-# # BUG! Não vai funcionar com arquivos contendo caracteres estranhos
-# sed --regexp-extended -n "/ (CLOSE_WRITE|MOVED_TO|CREATE)(,CLOSE)? /q" 0<&${INOTIFY[0]}
-
-inotifywait --event modify --recursive --quiet ${FULLNAME} 2>&1 >/dev/null
+inotifywait --event modify --recursive --quiet $@ 2>&1 >/dev/null
 
