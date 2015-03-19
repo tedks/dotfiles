@@ -101,7 +101,7 @@ def source_script(scriptpath):
         k, _, v = line.partition('=')
         os.environ[k] = v
 
-if __name__ == '__main__':
+def main():    
     parser = argparse.ArgumentParser()
     parser.add_argument("project",
                         help="The project to work on. Must be a directory in ~/Projects.")
@@ -112,3 +112,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     werk(args.project, track=args.track)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit(1)
