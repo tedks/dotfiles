@@ -24,9 +24,6 @@ def path(project):
     path = os.path.join(PROJECTS, root_project)
     base_path = path
     
-    if not os.path.exists(path):
-        raise ValueError("Invalid path")
-
     if WORKDIR in os.listdir(path):
         path = os.path.join(path, WORKDIR)
         
@@ -37,7 +34,9 @@ def path(project):
         if not os.path.exists(path) \
            and os.path.exists(non_workdir_path):
             path = non_workdir_path
-            
+
+    if not os.path.exists(path):
+        raise ValueError("Invalid path")
 
     return root_project, base_path, path
 
