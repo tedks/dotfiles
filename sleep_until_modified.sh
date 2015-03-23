@@ -11,10 +11,6 @@ print_help() {
 	cat << EOF
 Usage: $SCRIPTNAME filename
 Uses 'inotifywait' to sleep until 'filename' has been modified.
-
-Inspired by http://superuser.com/questions/181517/how-to-execute-a-command-whenever-a-file-changes/181543#181543
-
-TODO: rewrite this as a simple Python script, using pyinotify
 EOF
 }
 
