@@ -45,7 +45,7 @@ def byobu_command_string():
     session_name_flag = ''
     try:
         backend = open("{}/.byobu/backend".format(os.environ['HOME']))\
-                  .read().split('=')[-1]
+                  .read().split('=')[-1].rstrip()
         if backend == 'screen':
             session_name_flag = '-S'
         else:
@@ -69,6 +69,8 @@ def werk(project, track=False):
     """
     assert len(project) > 0
     launch_string = byobu_command_string()
+    if 'VERBOSE' in os.environ:
+        print("Launching {}".format(launch_string))
 
     try:
         project_name, base_path, work_path = path(project)
@@ -86,6 +88,8 @@ def werk(project, track=False):
         source_script(init_path)
     
     launch_list = shlex.split(launch_string.format(project_name))
+    if 'DEBUG' in os.environ:
+        print(launch_list)
     os.execvp(launch_list[0], launch_list)
 
 def source_script(scriptpath):
