@@ -1,0 +1,13 @@
+#!/bin/bash
+
+MOUNTPOINT="/tmp/mount"
+ANKI_PATH="$HOME/.anki/decks"
+ANKIDROID_PATH="/Internal storage/AnkiDroid"
+
+mkdir -p $MOUNTPOINT
+mtpfs $MOUNTPOINT
+rsync -azPpvh "$ANKI_PATH/" "${MOUNTPOINT}/${ANKIDROID_PATH}"
+
+
+
+

@@ -1,0 +1,20 @@
+[Desktop Entry]
+Categories=GNOME;GTK;Network;WebBrowser;
+Comment=Tracks task management
+Exec=/bin/sh -c 'firefox -P Tracks -remote "ping()" || firefox --new-instance -P Tracks http://tracks.gnuradical.su && firefox -P Tracks -remote "openurl(http://tracks.gnuradical.su)"'
+GenericName=Tracks
+Icon=/home/tedks/.config/tracks.png
+Keywords=Internet;WWW;Browser;Web;Explorer
+MimeType=video/webm;text/xml;text/html;image/png;image/jpeg;image/gif;application/xml;application/xhtml+xml;application/x-xpinstall;application/rss+xml;application/rdf+xml;
+Name=Tracks
+Path=
+StartupNotify=true
+Terminal=false
+TerminalOptions=
+Type=Application
+Version=1.0
+X-DBUS-ServiceName=
+X-DBUS-StartupType=
+X-KDE-SubstituteUID=false
+X-KDE-Username=
+X-MultipleArgs=false

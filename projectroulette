@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 
+import os
+import random
+import subprocess
 import sys
 
-sys.path.append("/home/tedks/Projects/randomline/")
 
-from randomline import *
-
-projects_file = "/home/tedks/Documents/personal/projects.txt"
 
 if __name__ == "__main__":
-    project = get_random_line(projects_file)[2:]
-    print "Work on %s" % project
-    
-    
-
+    home = os.environ['HOME']
+    project = random.choice(os.path.listdir("{}/Projects/".format(home)))
+    subprocess.call("dowork {}".format(project))
