@@ -1,9 +1,12 @@
 #!/usr/bin/python
+# needs to be 2.7 for hamster :-(
 
 import argparse
 import os
 import shlex
 import subprocess
+
+from projectroulette import random_project
 
 try:
     from hamster.client import Storage as hc
@@ -106,15 +109,21 @@ def source_script(scriptpath):
 
 def main():    
     parser = argparse.ArgumentParser()
-    parser.add_argument("project",
+    parser.add_argument("--track", "-t", action="store_true", default=False,
+                        help="Track in hamster as <project name>@projects")
+    projsel = parser.add_mutually_exclusive_group(required=True)
+    
+    projsel.add_argument("project", nargs='?', default=None,
                         help="The project to work on. Must be a directory in ~/Projects.")
-    if have_hamster:
-        parser.add_argument("--track", "-t", action="store_true", default=False,
-                            help="Track in hamster as <project name>@projects")
+    projsel.add_argument("--random", '-r', default=False, action="store_true",
+                        help="Pick a random project to work on")
     
     args = parser.parse_args()
+
+    if args.random:
+        args.project = random_project()
     
-    werk(args.project, track=args.track)
+    werk(args.project, track=(args.track and have_hamster))
 
 if __name__ == '__main__':
     try:
