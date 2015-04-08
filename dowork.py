@@ -6,8 +6,6 @@ import os
 import shlex
 import subprocess
 
-from projectroulette import random_project
-
 try:
     from hamster.client import Storage as hc
     from hamster.lib.stuff import Fact
@@ -18,6 +16,12 @@ except ImportError:
 INITFILE = ".work_init"
 WORKDIR = "workdir"
 PROJECTS = "{}/Projects".format(os.environ['HOME'])
+
+def random_project(projects_dir='{}/Projects'):
+    if '{}' in projects_dir:
+        projects_dir = projects_dir.format(os.environ['HOME'])
+    project = random.choice(os.listdir(projects_dir))
+    return project
 
 def path(project):
     if os.path.isabs(project):
