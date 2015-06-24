@@ -25,12 +25,19 @@ def thumbnail_pdf(infile, outfile=None, page=0, size=None, opts=None):
         opts = ['-background', 'white',
                 '-alpha', 'remove']
 
-        print([CONVERT_BINARY_NAME, THUMBNAIL_ARGUMENT,
-                         '{}x{}'.format(*size)]
-              + opts +
-              [infile + '[{}]'.format(page),
-               outfile])
-
+        try:
+            output = sp.check_output([CONVERT_BINARY_NAME, THUMBNAIL_ARGUMENT,
+                                      '{}x{}'.format(*size)]
+                                     + opts +
+                                     [infile + '[{}]'.format(page),
+                                      outfile],
+                                     stderr=sp.STDOUT, universal_newlines=True)
+            print(output, end='')
+            exit(0)
+        except sp.CalledProcessError as cpe:
+            print("Thumbnailer encountered an error:")
+            print(cpe.output)
+            exit(cpe.returncode)
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('file', help='The PDF to thumbnail')
