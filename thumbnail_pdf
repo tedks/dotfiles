@@ -41,9 +41,19 @@ def thumbnail_pdf(infile, outfile=None, page=0, size=None, opts=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('file', help='The PDF to thumbnail')
+    parser.add_argument('--out', '-o', help='output filename')
+    parser.add_argument('--page', '-p', help='the page to thumbnail', type=int)
+    # need to do multi-add for this param
+    # parser.add_argument('--other-opt')
+    # need to parse this so it can take:
+    # Wx (width)
+    # xH (height)
+    # WxH (width by height)
+    # parser.add_argument('--size', '-s', help='Size of the thumbnail')
+    
     
     args = parser.parse_args()
-    thumbnail_pdf(args.file)
+    thumbnail_pdf(args.file, outfile=parser.out, page=args.page)
     
 
 if __name__ == "__main__":
