@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Journal
+GenericName=Journal
+Comment=Write in your journal
+MimeType=text/english;text/plain;
+Exec=/home/ted/Projects/scripts/trunk/bin/ec --eval '(journal journal-dir)'
+Icon=gnome-activity-journal
+Type=Application
+Terminal=false
+Categories=Utility;Development;TextEditor;
