@@ -23,9 +23,10 @@ Will probably only work on systems running Gnome desktop, tested on Ubuntu 13.04
 
 @route('/')
 def hello():
-    print request.environ.get('REMOTE_HOST')
+    print "Remote host: [{}]".format(request.environ.get('REMOTE_HOST'))
     devices =('DEVICE_ID_HER',)
-    if request.environ.get('REMOTE_HOST') in devices:
+    requesting_device = request.environ.get('REMOTE_HOST')
+    if requesting_device in devices:
         status = subprocess.check_output(["gnome-screensaver-command", "-t"])
         if status == 'The screensaver is not currently active.\n':
             message = "YOUR SWITCH ON HTML GOES HERE"
@@ -34,7 +35,7 @@ def hello():
             message = "YOUR SWITCH OFF HTML GOES HERE" 
             subprocess.call(["gnome-screensaver-command", "-d"])
     else:
-        message = "YOUR UNAUTHORISED HTML GOES HERE"
+        message = "Unauthorized device {}".format(requesting_device)
     return message
 
 
