@@ -6,6 +6,7 @@ while true; do
 	echo "`date`: network up!" && sleep 300
     else
 	killall nm-applet
-	disown nm-applet >/dev/null 2>&1 
+	disown nm-applet >/dev/null 2>&1
+	sleep 30
     fi;
 done
