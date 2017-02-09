@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 while true; do
     ping -c 4 4.2.2.1 > /dev/null 2>&1
