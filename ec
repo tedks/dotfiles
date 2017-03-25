@@ -7,16 +7,25 @@ from contextlib import redirect_stdout
 
 # unit -> bool
 def is_emacs_running():
-    return 0 == check_call(['pgrep', '-f', 'emacs --daemon'], 
-                           stdout=DEVNULL,
-                           stderr=DEVNULL)
+    try:
+        check_call(['pgrep', '-f', 'emacs --daemon'],
+                   stdout=DEVNULL,
+                   stderr=DEVNULL)
+        return True
+    except:
+        return False
 
 def start_emacs():
-    Popen(['emacs', '--daemon'], 
-          stdout=-1, 
-          cwd=os.environ['HOME'])
+    emacs = Popen(['emacs', '--daemon'], 
+                  stdout=DEVNULL,
+                  stderr=DEVNULL,
+                  cwd=os.environ['HOME'])
+    if emacs.returncode is not None:
+        print("Emacs terminated({})".format(emacs.returncode), file=sys.stderr)
+    return
 
 def run_emacs_client(args, console=False):
+    print("Running emacs client")
     argv = []
     if console:
         argv += ['ecc', '-nw']
