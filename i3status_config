@@ -34,7 +34,7 @@ load {
 }
 
 wireless _first_ {
-        format_up = "W: %ip %essid (%quality:%bitrate/%frequency"
+        format_up = "W: %ip %essid %bitrate-%frequency-%quality)"
         format_down = "W: down"
 }
 
