@@ -9,6 +9,9 @@
 #
 # Please see http://i3wm.org/docs/userguide.html for a complete reference!
 
+# Disable focus follows mouse
+focus_follows_mouse no
+
 set $mod Mod4
 set $alt Mod1
 
