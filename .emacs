@@ -180,14 +180,11 @@
      ("The dotCommunist Manifesto"
       ("/home/tedks/Documents/polit/rtc/distro/dotCommunism")
       (:base "book-pdf" :path "/home/tedks/Documents/polit/rtc/distro/")))))
- '(package-archives
-   (quote
-    (("gnu" . "https://elpa.gnu.org/packages/")
-     ("marmalade" . "https://marmalade-repo.org/packages/")
-     ("melpa" . "http://melpa.milkbox.net/packages/"))))
+ '(package-archives (quote (("gnu" . "https://elpa.gnu.org/packages/"))))
+ '(package-check-signature (quote allow-unsigned))
  '(package-selected-packages
    (quote
-    (fountain-mode bazel-mode merlin tuareg utop rainbow-delimiters rainbow-identifiers zeitgeist weblogger smex scala-mode2 python pkg-info org-mac-link-grabber org-mac-link org-blog org-agenda-property opam muse magit-tramp magit-gerrit magit-find-file howdoi go-scratch go-rename go-dlv go-autocomplete flymake-ruby flymake-python-pyflakes flymake-perlcritic flymake-json flymake-jslint flymake-haskell-multi flymake-go flymake-cursor flymake-coffee flx-ido f ess-R-data-view erlang emacs-eclim dockerfile-mode docker-api docker csv-mode csharp-mode color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized bison-mode autopair 2048-game)))
+    (gnu-elpa-keyring-update ace-window fountain-mode bazel-mode merlin tuareg utop rainbow-delimiters rainbow-identifiers zeitgeist weblogger smex scala-mode2 python pkg-info org-mac-link-grabber org-mac-link org-blog org-agenda-property opam muse magit-tramp magit-gerrit magit-find-file howdoi go-scratch go-rename go-dlv go-autocomplete flymake-ruby flymake-python-pyflakes flymake-perlcritic flymake-json flymake-jslint flymake-haskell-multi flymake-go flymake-cursor flymake-coffee flx-ido f ess-R-data-view erlang emacs-eclim dockerfile-mode docker-api docker csv-mode csharp-mode color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized bison-mode autopair 2048-game)))
  '(pair-mode-chars (quote (40 91 123 171 96 34)))
  '(safe-local-variable-values
    (quote
@@ -223,7 +220,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:family "Source Code Pro" :foundry "adobe" :slant normal :weight normal :height 113 :width normal)))))
+ '(default ((t (:family "Source Code Pro" :foundry "adobe" :slant normal :weight normal :height 80 :width normal)))))
 
 (add-to-list 'custom-theme-load-path "~/.elisp/")
 ;; (load-theme 'tomorrow-night-eighties)
@@ -830,3 +827,7 @@ This command does the inverse of `fill-region'."
 ;; Tuareg integration
 (autoload 'utop-minor-mode "utop" "Minor mode for utop" t)
 (add-hook 'tuareg-mode-hook 'utop-minor-mode)
+
+;; ace-window
+(global-set-key (kbd "M-o") 'ace-window)
+(setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
