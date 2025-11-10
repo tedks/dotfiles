@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+set -x
+
+# XKB option: Caps becomes Control
+XKB_OPTS="['ctrl:nocaps']"
+
+# GNOME/Wayland/Xorg path: use gsettings (managed by gnome-settings-daemon)
+if command -v gsettings >/dev/null 2>&1; then
+  # ensure we don't clobber any other options you may add later
+  gsettings set org.gnome.desktop.input-sources xkb-options "$XKB_OPTS" || true
+fi
+
+# Xorg fallback (useful if g-s-d isn't up yet, or in bare i3)
+if command -v setxkbmap >/dev/null 2>&1 && [[ "${XDG_SESSION_TYPE:-x11}" = "x11" ]]; then
+  setxkbmap -option ctrl:nocaps
+fi
