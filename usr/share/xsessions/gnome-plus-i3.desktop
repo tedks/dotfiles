@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GNOME + i3
+Comment=GNOME Flashback session using the i3 window manager
+Exec=gnome-session --session=gnome-plus-i3
+TryExec=gnome-session
+DesktopNames=GNOME-Flashback:GNOME
+# (Optional) Make intent explicit during debug:
+# X-GDM-SessionType=xorg

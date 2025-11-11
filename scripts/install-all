@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Ensure ~/.bin and link hm-add if present in repo
+mkdir -p "$HOME/.bin"
+if [ -f "$ROOT/.bin/hm-add" ]; then
+  ln -sf "$ROOT/.bin/hm-add" "$HOME/.bin/hm-add"
+  chmod +x "$HOME/.bin/hm-add"
+  echo "✔ Linked hm-add to ~/.bin/hm-add"
+fi
+
+# Install GNOME+i3 session files
+"$ROOT/scripts/install-gnome-i3"
+
+echo "✅ install-all complete."

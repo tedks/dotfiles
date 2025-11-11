@@ -1,0 +1,4 @@
+[GNOME Session]
+Name=GNOME + i3
+RequiredComponents=gnome-flashback;i3;org.gnome.SettingsDaemon.XSettings;org.gnome.SettingsDaemon.Keyboard;org.gnome.SettingsDaemon.MediaKeys;org.gnome.SettingsDaemon.Power;org.gnome.SettingsDaemon.Sound;org.gnome.SettingsDaemon.Color;org.gnome.SettingsDaemon.Housekeeping;org.gnome.SettingsDaemon.Rfkill;org.gnome.SettingsDaemon.ScreensaverProxy;org.gnome.SettingsDaemon.PrintNotifications;org.gnome.SettingsDaemon.Wacom
+DesktopName=GNOME-Flashback

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+sudo install -Dm644 "$ROOT/usr/share/gnome-session/sessions/gnome-plus-i3.session" \
+  /usr/share/gnome-session/sessions/gnome-plus-i3.session
+sudo install -Dm644 "$ROOT/usr/share/xsessions/gnome-plus-i3.desktop" \
+  /usr/share/xsessions/gnome-plus-i3.desktop
+
+echo "✔ Installed GNOME+i3 session files to /usr/share/*"
+echo "Pick “GNOME + i3” from the GDM cog menu."

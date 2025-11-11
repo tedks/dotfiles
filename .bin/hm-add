@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# hm-add: declaratively add packages to Home Manager and commit only on success.
+# - Adds packages into the *home.packages* list in ~/.config/home-manager/home.nix
+# - Builds/switches; commits changes only if the build succeeds
+# - Supports: multiple packages, --search, --help
+
+set -euo pipefail
+
+HM_DIR="${HM_DIR:-$HOME/.config/home-manager}"
+HOME_NIX="$HM_DIR/home.nix"
+FLAKE_PATH="$HM_DIR"
+
+print_help() {
+  cat <<'EOF'
+Usage:
+  hm-add <pkg> [<pkg> ...]      Add one or more packages to home.packages and switch
+  hm-add --search <term>        Search nixpkgs for packages
+  hm-add --help | -h            Show this help
+
+Notes:
+  * This edits ~/.config/home-manager/home.nix.
+  * Commit to Git happens only if the Home Manager switch succeeds.
+  * If you add unfree packages like vscode/cursor, enable unfree in your config:
+      nixpkgs.config.allowUnfree = true;
+EOF
+}
+
+# ---------- parse args ----------
+if [[ $# -eq 0 || "${1:-}" =~ ^(--help|-h)$ ]]; then
+  print_help
+  exit 0
+fi
+
+# search subcommand
+if [[ "${1:-}" == "--search" || "${1:-}" == "-s" || "${1:-}" == "search" ]]; then
+  shift
+  (( $# > 0 )) || { echo "❌ Provide a search term."; exit 1; }
+  printf '🔍 nix search nixpkgs %s\n' "$*"
+  nix search nixpkgs "$@"
+  exit 0
+fi
+
+# Remaining args are package names
+PKGS=("$@")
+
+# ---------- sanity checks ----------
+[[ -f "$HOME_NIX" ]] || { echo "❌ $HOME_NIX not found"; exit 1; }
+if ! git -C "$HM_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "❌ $HM_DIR is not a Git repo. Run:  (cd $HM_DIR && git init && git add . && git commit -m 'init')"
+  exit 1
+fi
+
+# Locate the home.packages list; detect whether it's 'with pkgs;'
+if grep -Eq 'home\.packages[[:space:]]*=[[:space:]]*with[[:space:]]+pkgs;[[:space:]]*\[' "$HOME_NIX"; then
+  INSERT_ANCHOR_REGEX='home\.packages[[:space:]]*=[[:space:]]*with[[:space:]]+pkgs;[[:space:]]*\['
+  WITH_PKGS=1
+elif grep -Eq 'home\.packages[[:space:]]*=\s*\[' "$HOME_NIX"; then
+  INSERT_ANCHOR_REGEX='home\.packages[[:space:]]*=\s*\['
+  WITH_PKGS=0
+else
+  echo "❌ Could not find 'home.packages = ... [ ... ]' block in $HOME_NIX"
+  exit 1
+fi
+
+# Extract ONLY the home.packages list block for accurate presence checks
+extract_home_packages_block() {
+  awk '
+    $0 ~ /home[.]packages[[:space:]]*=/ {inlist=1}
+    inlist {print}
+    inlist && /\]/ {exit}
+  ' "$HOME_NIX"
+}
+
+pkg_in_home_packages() {
+  local p="$1"
+  # Match either `p` (when using `with pkgs;`) or `pkgs.p` (when not)
+  local block
+  block="$(extract_home_packages_block)"
+  if [[ $WITH_PKGS -eq 1 ]]; then
+    grep -Eq "^[[:space:]]*${p}([[:space:]#]|$)" <<<"$block"
+  else
+    grep -Eq "^[[:space:]]*(pkgs\.)?${p}([[:space:]#]|$)" <<<"$block"
+  fi
+}
+
+add_pkg_line() {
+  local p="$1" to_add
+  if [[ $WITH_PKGS -eq 1 ]]; then
+    to_add="$p"
+  else
+    to_add="pkgs.$p"
+  fi
+  # Insert right after the '[' line of the home.packages block
+  sed -Ei "/$INSERT_ANCHOR_REGEX/a\  ${to_add}" "$HOME_NIX"
+  echo "➕ Added '$p' to home.nix"
+}
+
+# ---------- transactional edit ----------
+TMP_BAK="$(mktemp -t hm-add.home.nix.XXXXXX)"
+cp -f "$HOME_NIX" "$TMP_BAK"
+
+cleanup() {
+  local code=$?
+  if [[ $code -ne 0 ]]; then
+    echo "↩️  Reverting $HOME_NIX due to failure…"
+    cp -f "$TMP_BAK" "$HOME_NIX"
+  fi
+  rm -f "$TMP_BAK"
+  exit $code
+}
+trap cleanup EXIT INT TERM
+
+# Add each requested package if not already present in the list
+for p in "${PKGS[@]}"; do
+  if pkg_in_home_packages "$p"; then
+    echo "✅ '$p' already present in home.packages"
+  else
+    add_pkg_line "$p"
+  fi
+done
+
+# Optional: format (ignore errors if formatter missing)
+if command -v nixpkgs-fmt >/dev/null 2>&1; then
+  nixpkgs-fmt "$HOME_NIX" || true
+fi
+
+# ---------- build & switch ----------
+echo "🔄 Building & switching (this may warn about a dirty Git tree until we commit)…"
+nix run github:nix-community/home-manager -- --flake "$FLAKE_PATH" switch
+
+# ---------- commit only if switch succeeded ----------
+# Stage only changed files in the HM dir; commit if there are any
+if ! git -C "$HM_DIR" diff --quiet; then
+  git -C "$HM_DIR" add -A
+  git -C "$HM_DIR" commit -m "hm-add: add ${PKGS[*]}"
+  echo "✅ Committed changes: ${PKGS[*]}"
+else
+  echo "ℹ️ No changes to commit."
+fi
+
+echo "✅ Done."
