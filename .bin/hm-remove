@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# hm-remove: declaratively remove packages from Home Manager and commit only on success.
+# - Removes packages from the home.packages list in ~/.config/home-manager/home.nix
+# - Builds/switches; commits changes only if the build succeeds
+# - Mirrors hm-add behavior
+
+set -euo pipefail
+
+HM_DIR="${HM_DIR:-$HOME/.config/home-manager}"
+HOME_NIX="$HM_DIR/home.nix"
+FLAKE_PATH="$HM_DIR"
+
+print_help() {
+  cat <<'EOF'
+Usage:
+  hm-remove <pkg> [<pkg> ...]   Remove one or more packages from home.packages
+  hm-remove --list              List currently declared packages
+  hm-remove --help | -h         Show this help
+
+Notes:
+  * This edits ~/.config/home-manager/home.nix.
+  * Commit to Git happens only if the Home Manager switch succeeds.
+  * Use hm-list to see what packages are declared.
+EOF
+}
+
+# ---------- parse args ----------
+if [[ $# -eq 0 || "${1:-}" =~ ^(--help|-h)$ ]]; then
+  print_help
+  exit 0
+fi
+
+if [[ "${1:-}" == "--list" ]]; then
+  exec hm-list
+fi
+
+PKGS=("$@")
+
+# ---------- sanity checks ----------
+[[ -f "$HOME_NIX" ]] || { echo "Error: $HOME_NIX not found"; exit 1; }
+if ! git -C "$HM_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Error: $HM_DIR is not a Git repo."
+  exit 1
+fi
+
+# Detect format: 'with pkgs;' or 'pkgs.' style
+if grep -Eq 'home\.packages[[:space:]]*=[[:space:]]*with[[:space:]]+pkgs;[[:space:]]*\[' "$HOME_NIX"; then
+  WITH_PKGS=1
+else
+  WITH_PKGS=0
+fi
+
+# Extract the home.packages block for checking
+extract_home_packages_block() {
+  awk '
+    $0 ~ /home[.]packages[[:space:]]*=/ {inlist=1}
+    inlist {print}
+    inlist && /\]/ {exit}
+  ' "$HOME_NIX"
+}
+
+pkg_in_home_packages() {
+  local p="$1"
+  local block
+  block="$(extract_home_packages_block)"
+  if [[ $WITH_PKGS -eq 1 ]]; then
+    grep -Eq "^[[:space:]]*${p}([[:space:]#]|$)" <<<"$block"
+  else
+    grep -Eq "^[[:space:]]*(pkgs\.)?${p}([[:space:]#]|$)" <<<"$block"
+  fi
+}
+
+remove_pkg_line() {
+  local p="$1"
+  local pattern
+  if [[ $WITH_PKGS -eq 1 ]]; then
+    # Match line with just the package name (with optional leading whitespace)
+    pattern="^[[:space:]]*${p}[[:space:]]*$"
+  else
+    # Match with or without pkgs. prefix
+    pattern="^[[:space:]]*(pkgs\.)?${p}[[:space:]]*$"
+  fi
+
+  # Remove the line
+  sed -Ei "\|${pattern}|d" "$HOME_NIX"
+  echo "Removed '$p' from home.nix"
+}
+
+# ---------- transactional edit ----------
+TMP_BAK="$(mktemp -t hm-remove.home.nix.XXXXXX)"
+cp -f "$HOME_NIX" "$TMP_BAK"
+
+cleanup() {
+  local code=$?
+  if [[ $code -ne 0 ]]; then
+    echo "Reverting $HOME_NIX due to failure..."
+    cp -f "$TMP_BAK" "$HOME_NIX"
+  fi
+  rm -f "$TMP_BAK"
+  exit $code
+}
+trap cleanup EXIT INT TERM
+
+# Remove each requested package
+REMOVED=()
+for p in "${PKGS[@]}"; do
+  if pkg_in_home_packages "$p"; then
+    remove_pkg_line "$p"
+    REMOVED+=("$p")
+  else
+    echo "Package '$p' not found in home.packages (skipping)"
+  fi
+done
+
+if [[ ${#REMOVED[@]} -eq 0 ]]; then
+  echo "No packages were removed."
+  exit 0
+fi
+
+# Optional: format
+if command -v nixpkgs-fmt >/dev/null 2>&1; then
+  nixpkgs-fmt "$HOME_NIX" || true
+fi
+
+# ---------- build & switch ----------
+echo "Building & switching..."
+nix run github:nix-community/home-manager -- --flake "$FLAKE_PATH" switch
+
+# ---------- commit only if switch succeeded ----------
+if ! git -C "$HM_DIR" diff --quiet; then
+  git -C "$HM_DIR" add -A
+  git -C "$HM_DIR" commit -m "hm-remove: remove ${REMOVED[*]}"
+  echo "Committed changes: removed ${REMOVED[*]}"
+else
+  echo "No changes to commit."
+fi
+
+echo "Done."
