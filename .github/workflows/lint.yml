@@ -1,0 +1,37 @@
+name: Lint
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on .bin/ scripts
+        run: |
+          shopt -s nullglob
+          scripts=(.bin/*)
+          if [[ ${#scripts[@]} -gt 0 ]]; then
+            shellcheck -x "${scripts[@]}"
+          else
+            echo "No scripts found in .bin/"
+          fi
+
+      - name: Run ShellCheck on scripts/
+        run: |
+          shopt -s nullglob
+          scripts=(scripts/*)
+          if [[ ${#scripts[@]} -gt 0 ]]; then
+            shellcheck -x "${scripts[@]}"
+          else
+            echo "No scripts found in scripts/"
+          fi
