@@ -121,6 +121,18 @@ cd ~/Projects/dotfiles
 ./scripts/copy.sh
 ```
 
+## Chrome Integration
+
+This repo supports Claude Code's Chrome integration for browser-based testing and debugging.
+
+### Setup
+1. Install the [Claude in Chrome extension](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn)
+2. Launch Claude Code with: `claude --chrome`
+3. Verify connection with: `/chrome`
+
+### Usage
+Chrome integration enables testing of X11/GNOME configurations in browser-based tools, debugging web-based settings, and automating browser tasks.
+
 ## Notes
 
 - Emacs config assumes Source Code Pro font and solarized-light theme
