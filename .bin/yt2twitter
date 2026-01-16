@@ -1,0 +1,325 @@
+#!/bin/bash
+# yt2twitter - Download YouTube videos and convert to Twitter Blue format
+# Requires: yt-dlp, ffmpeg, python3 (browser_cookie3 installed automatically in venv)
+
+set -euo pipefail
+
+# Constants
+MAX_DURATION_SECONDS=$((3 * 3600 + 55 * 60))  # 3:55:00 - margin under 4h limit
+# Use non-hidden directory for snap compatibility (snaps can't access ~/.* directories)
+TEMP_BASE="$HOME/tmp/yt2twitter"
+VENV_DIR="$HOME/.local/share/yt2twitter/venv"
+TEMP_DIR=""
+COOKIES_FILE=""
+
+# Default options
+OUTPUT_PATH=""
+MAX_RES="1080"
+INFO_ONLY=false
+NO_COOKIES=false
+
+print_help() {
+    cat << 'EOF'
+yt2twitter - Download YouTube videos and convert to Twitter Blue format
+
+USAGE:
+    yt2twitter <youtube-url>                    Download to current directory
+    yt2twitter <youtube-url> -o <path>          Custom output path (file or dir)
+    yt2twitter <youtube-url> --720p             Limit to 720p (smaller files)
+    yt2twitter <youtube-url> --info             Show video info only
+    yt2twitter <youtube-url> --no-cookies       Skip cookie extraction (public videos)
+    yt2twitter --help                           Show this help
+
+TWITTER BLUE SPECS:
+    Duration:    Up to 4 hours
+    Resolution:  Up to 1080p
+    File size:   Up to 16GB
+    Codec:       H.264 video, AAC audio
+    Container:   MP4
+
+EXAMPLES:
+    yt2twitter 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    yt2twitter 'https://youtu.be/dQw4w9WgXcQ' -o ~/Videos/
+    yt2twitter 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' -o output.mp4 --720p
+
+NOTES:
+    - Uses Chrome cookies for YouTube Premium authentication
+    - Videos longer than ~4 hours are automatically split into parts
+    - Output files are named based on video title (sanitized)
+EOF
+}
+
+cleanup() {
+    if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
+        rm -rf "$TEMP_DIR"
+    fi
+    if [[ -n "$COOKIES_FILE" && -f "$COOKIES_FILE" ]]; then
+        rm -f "$COOKIES_FILE"
+    fi
+}
+
+trap cleanup EXIT INT TERM
+
+die() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+check_dependencies() {
+    local missing=()
+    command -v yt-dlp >/dev/null 2>&1 || missing+=("yt-dlp")
+    command -v ffmpeg >/dev/null 2>&1 || missing+=("ffmpeg")
+    command -v python3 >/dev/null 2>&1 || missing+=("python3")
+    command -v rsync >/dev/null 2>&1 || missing+=("rsync")
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        die "Missing dependencies: ${missing[*]}"
+    fi
+}
+
+ensure_venv() {
+    if [[ ! -d "$VENV_DIR" ]]; then
+        echo "Setting up Python venv (first run)..."
+        mkdir -p "$(dirname "$VENV_DIR")"
+        python3 -m venv "$VENV_DIR"
+        "$VENV_DIR/bin/pip" install --quiet --upgrade pip
+        "$VENV_DIR/bin/pip" install --quiet browser_cookie3
+        echo "Venv created at $VENV_DIR"
+    fi
+
+    # Verify browser_cookie3 is installed
+    if ! "$VENV_DIR/bin/python" -c "import browser_cookie3" 2>/dev/null; then
+        echo "Installing browser_cookie3..."
+        "$VENV_DIR/bin/pip" install --quiet browser_cookie3
+    fi
+}
+
+validate_url() {
+    local url="$1"
+    if [[ "$url" =~ ^https?://(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/) ]]; then
+        return 0
+    fi
+    die "Invalid YouTube URL: $url"
+}
+
+extract_cookies() {
+    COOKIES_FILE=$(mktemp /tmp/yt-cookies-XXXXXX.txt)
+    "$VENV_DIR/bin/python" << 'PYTHON_EOF' > "$COOKIES_FILE"
+import browser_cookie3
+import sys
+
+try:
+    cj = browser_cookie3.chrome(domain_name='.youtube.com')
+    print("# Netscape HTTP Cookie File")
+    for c in cj:
+        secure = "TRUE" if c.secure else "FALSE"
+        # browser_cookie3 stores httponly differently
+        http_only = "TRUE" if getattr(c, '_rest', {}).get('HttpOnly', False) else "FALSE"
+        expiry = str(int(c.expires)) if c.expires else "0"
+        print(f"{c.domain}\t{http_only}\t{c.path}\t{secure}\t{expiry}\t{c.name}\t{c.value}")
+except Exception as e:
+    print(f"Failed to extract cookies: {e}", file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+
+    if [[ ! -s "$COOKIES_FILE" ]]; then
+        die "Failed to extract cookies from Chrome"
+    fi
+}
+
+get_video_info() {
+    local url="$1"
+    if [[ -n "$COOKIES_FILE" && -f "$COOKIES_FILE" ]]; then
+        yt-dlp --cookies "$COOKIES_FILE" --dump-json "$url" 2>/dev/null
+    else
+        yt-dlp --dump-json "$url" 2>/dev/null
+    fi
+}
+
+sanitize_filename() {
+    local name="$1"
+    # Remove/replace problematic characters
+    echo "$name" | sed 's/[<>:"/\\|?*]/_/g' | sed 's/  */ /g' | sed 's/^ *//;s/ *$//'
+}
+
+download_video() {
+    local url="$1"
+    local output_template="$2"
+
+    echo "Downloading video..."
+    if [[ -n "$COOKIES_FILE" && -f "$COOKIES_FILE" ]]; then
+        yt-dlp \
+            --cookies "$COOKIES_FILE" \
+            -f "bestvideo[height<=${MAX_RES}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${MAX_RES}]+bestaudio/best[height<=${MAX_RES}]" \
+            --merge-output-format mp4 \
+            -o "$output_template" \
+            "$url"
+    else
+        yt-dlp \
+            -f "bestvideo[height<=${MAX_RES}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${MAX_RES}]+bestaudio/best[height<=${MAX_RES}]" \
+            --merge-output-format mp4 \
+            -o "$output_template" \
+            "$url"
+    fi
+}
+
+encode_for_twitter() {
+    local input="$1"
+    local output="$2"
+
+    echo "Encoding for Twitter..."
+    ffmpeg -i "$input" \
+        -c:v libx264 -preset slow -crf 23 -profile:v high -level 4.2 -pix_fmt yuv420p \
+        -c:a aac -b:a 192k -ar 44100 \
+        -movflags +faststart \
+        -y "$output" 2>&1 | grep -E '^(frame|size|time)' || true
+}
+
+split_video() {
+    local input="$1"
+    local output_base="$2"
+    local duration="$3"
+
+    local num_parts=$(( (duration + MAX_DURATION_SECONDS - 1) / MAX_DURATION_SECONDS ))
+    echo "Video is ${duration}s, splitting into $num_parts parts..."
+
+    for ((i=0; i<num_parts; i++)); do
+        local start=$((i * MAX_DURATION_SECONDS))
+        local part_num=$((i + 1))
+        local output="${output_base}-part${part_num}.mp4"
+
+        echo "Encoding part $part_num of $num_parts..."
+        ffmpeg -ss "$start" -i "$input" \
+            -t "$MAX_DURATION_SECONDS" \
+            -c:v libx264 -preset slow -crf 23 -profile:v high -level 4.2 -pix_fmt yuv420p \
+            -c:a aac -b:a 192k -ar 44100 \
+            -movflags +faststart \
+            -y "$output" 2>&1 | grep -E '^(frame|size|time)' || true
+    done
+}
+
+transfer_output() {
+    local src="$1"
+    local dst="$2"
+
+    echo "Transferring to final destination..."
+    rsync --partial --progress "$src" "$dst"
+}
+
+main() {
+    local url=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help|-h)
+                print_help
+                exit 0
+                ;;
+            --info)
+                INFO_ONLY=true
+                shift
+                ;;
+            --no-cookies)
+                NO_COOKIES=true
+                shift
+                ;;
+            --720p)
+                MAX_RES="720"
+                shift
+                ;;
+            -o)
+                [[ -z "${2:-}" ]] && die "-o requires an argument"
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            -*)
+                die "Unknown option: $1"
+                ;;
+            *)
+                [[ -n "$url" ]] && die "Multiple URLs not supported"
+                url="$1"
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$url" ]] && { print_help; exit 1; }
+
+    check_dependencies
+    validate_url "$url"
+
+    if ! $NO_COOKIES; then
+        ensure_venv
+        echo "Extracting cookies from Chrome..."
+        extract_cookies
+    fi
+
+    echo "Fetching video info..."
+    local info
+    info=$(get_video_info "$url")
+
+    local title duration
+    title=$(echo "$info" | python3 -c "import sys,json; print(json.load(sys.stdin)['title'])")
+    duration=$(echo "$info" | python3 -c "import sys,json; print(int(json.load(sys.stdin).get('duration', 0)))")
+
+    local safe_title
+    safe_title=$(sanitize_filename "$title")
+
+    if $INFO_ONLY; then
+        echo ""
+        echo "Title:      $title"
+        echo "Duration:   $(printf '%d:%02d:%02d' $((duration/3600)) $(((duration%3600)/60)) $((duration%60)))"
+        echo "Will split: $(( duration > MAX_DURATION_SECONDS ? 1 : 0 )) ($(( (duration + MAX_DURATION_SECONDS - 1) / MAX_DURATION_SECONDS )) parts)"
+        exit 0
+    fi
+
+    # Set up temp directory (within $HOME for snap access)
+    TEMP_DIR="$TEMP_BASE/$$"
+    mkdir -p "$TEMP_DIR"
+
+    # Determine final output path
+    local final_dir final_name
+    if [[ -z "$OUTPUT_PATH" ]]; then
+        final_dir="$PWD"
+        final_name="$safe_title"
+    elif [[ -d "$OUTPUT_PATH" ]]; then
+        final_dir="$OUTPUT_PATH"
+        final_name="$safe_title"
+    else
+        final_dir=$(dirname "$OUTPUT_PATH")
+        final_name=$(basename "$OUTPUT_PATH" .mp4)
+    fi
+
+    # Download to temp
+    local downloaded="$TEMP_DIR/downloaded.mp4"
+    download_video "$url" "$downloaded"
+
+    if [[ ! -f "$downloaded" ]]; then
+        die "Download failed"
+    fi
+
+    echo "Download complete: $(du -h "$downloaded" | cut -f1)"
+
+    # Encode/split
+    if [[ $duration -gt $MAX_DURATION_SECONDS ]]; then
+        split_video "$downloaded" "$TEMP_DIR/$final_name" "$duration"
+
+        # Transfer all parts
+        for part in "$TEMP_DIR/$final_name"-part*.mp4; do
+            local part_name
+            part_name=$(basename "$part")
+            transfer_output "$part" "$final_dir/$part_name"
+            echo "Created: $final_dir/$part_name ($(du -h "$final_dir/$part_name" | cut -f1))"
+        done
+    else
+        local encoded="$TEMP_DIR/${final_name}.mp4"
+        encode_for_twitter "$downloaded" "$encoded"
+        transfer_output "$encoded" "$final_dir/${final_name}.mp4"
+        echo "Created: $final_dir/${final_name}.mp4 ($(du -h "$final_dir/${final_name}.mp4" | cut -f1))"
+    fi
+
+    echo "Done!"
+}
+
+main "$@"
