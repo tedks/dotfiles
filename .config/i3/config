@@ -18,6 +18,12 @@ exec --no-startup-id dbus-send \
     "string:i3" \
     "string:$DESKTOP_AUTOSTART_ID"
 
+# Ensure icon theme matches color scheme (gets reset on session switch)
+exec --no-startup-id gsettings set org.gnome.desktop.interface icon-theme 'Yaru-dark'
+
+# Force system pixbuf loaders (Nix librsvg conflicts with system GTK apps)
+exec --no-startup-id dbus-update-activation-environment --systemd GDK_PIXBUF_MODULE_FILE=/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache
+
 set $mod Mod4
 
 # Font for window titles. Will also be used by the bar unless a different font

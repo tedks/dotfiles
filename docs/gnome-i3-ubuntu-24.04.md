@@ -234,6 +234,26 @@ gsettings set org.gnome.desktop.interface icon-theme 'Yaru'
 
 Available Yaru variants: `Yaru`, `Yaru-dark`, `Yaru-blue`, `Yaru-blue-dark`, etc.
 
+### Nix/GTK library conflict (librsvg)
+
+**Symptom:** GTK apps crash or show broken icons with errors like:
+```
+Unable to load image-loading module: /nix/store/.../librsvg-.../libpixbufloader_svg.so: undefined symbol: rsvg_handle_get_pixbuf_and_error
+```
+
+**Cause:** Nix packages (kupfer, gimp, emacs-pgtk, redshift, etc.) pull in a version of `librsvg` that conflicts with system GTK apps. The Nix pixbuf loaders leak into the session environment, causing system apps like eog and nautilus to crash when loading SVG icons.
+
+**Solution:** Force system GTK apps to use the system pixbuf loaders by setting `GDK_PIXBUF_MODULE_FILE`. Add to i3 config:
+
+```
+# Force system pixbuf loaders (Nix librsvg conflicts with system GTK apps)
+exec --no-startup-id dbus-update-activation-environment --systemd GDK_PIXBUF_MODULE_FILE=/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache
+```
+
+This propagates the environment variable to D-Bus activated apps (which is how most GNOME apps start).
+
+**Alternative:** For packages like `redshift` and `xiccd` that don't need Nix-specific features, install via apt instead to avoid pulling in conflicting libraries.
+
 ## References
 
 - [GNOME Flashback](https://wiki.gnome.org/Projects/GnomeFlashback)
