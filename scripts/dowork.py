@@ -50,17 +50,18 @@ def path(project):
 
 def byobu_command_string():
     binary_name = 'byobu'
-    session_name_flag = ''
     try:
         backend = open("{}/.byobu/backend".format(os.environ['HOME']))\
                   .read().split('=')[-1].rstrip()
         if backend == 'screen':
-            session_name_flag = '-S'
+            # screen: byobu -S session_name
+            return "{} -S {}".format(binary_name, '{}')
         else:
-            session_name_flag = '-L'
+            # tmux: byobu new -s session_name
+            return "{} new -s {}".format(binary_name, '{}')
     except:
-        session_name_flag = '-L' # byobu defaults to tmux
-    return "{} {} {}".format(binary_name, session_name_flag, '{}')
+        # byobu defaults to tmux
+        return "{} new -s {}".format(binary_name, '{}')
 
 def hamster_track(project):
     """Track activity as {project}@projects"""
