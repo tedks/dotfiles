@@ -212,6 +212,28 @@ gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:nocaps']"
 exec --no-startup-id setxkbmap -option ctrl:nocaps
 ```
 
+### Broken icons in GTK apps (eog, nautilus, etc.)
+
+**Symptom:** Icons appear as red circle-slash "broken image" symbols.
+
+**Cause:** Mismatch between the GNOME color scheme and icon theme. If `color-scheme` is set to `prefer-dark` but the icon theme is `Yaru` (light), GTK apps can't find the correct icon variants.
+
+**Solution:** Match the icon theme to your color scheme:
+
+```bash
+# Check current settings
+gsettings get org.gnome.desktop.interface color-scheme
+gsettings get org.gnome.desktop.interface icon-theme
+
+# If color-scheme is 'prefer-dark', use dark icon theme:
+gsettings set org.gnome.desktop.interface icon-theme 'Yaru-dark'
+
+# If color-scheme is 'default' or 'prefer-light', use light icon theme:
+gsettings set org.gnome.desktop.interface icon-theme 'Yaru'
+```
+
+Available Yaru variants: `Yaru`, `Yaru-dark`, `Yaru-blue`, `Yaru-blue-dark`, etc.
+
 ## References
 
 - [GNOME Flashback](https://wiki.gnome.org/Projects/GnomeFlashback)
