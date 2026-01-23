@@ -19,14 +19,21 @@ scripts/           → Not installed     (Meta scripts for managing this repo)
 ## Key Components
 
 ### GNOME+i3 Session
-Hybrid desktop: GNOME Flashback services + i3 window manager. Session files live in:
-- `usr/share/gnome-session/sessions/gnome-plus-i3.session`
-- `usr/share/xsessions/gnome-plus-i3.desktop`
+Hybrid desktop: GNOME Flashback services + i3 window manager.
+
+**Session files:**
+- `usr/share/gnome-session/sessions/gnome-plus-i3.session` - RequiredComponents list
+- `usr/share/xsessions/gnome-plus-i3.desktop` - GDM session entry
+- `usr/lib/systemd/user/gnome-session@gnome-plus-i3.target.d/session.conf` - systemd target (required for Ubuntu 24.04)
+- `.config/gnome-session/sessions/gnome-plus-i3.session` - user-level override
+
+**Install:** Run `scripts/install-gnome-i3` then select "GNOME + i3" from GDM.
 
 ### i3 Config (`.config/i3/config`)
 - **Mod key**: Super (Mod4)
-- **Movement**: j/n/p/; for focus (hybrid: j=left, n=down, p=up from Emacs)
-- **Resize mode**: j/k/l/; (vim-style, shifted one key right from hjkl)
+- **Movement**: j/n/p/; for focus (Emacs-style: j=left, n=down, p=up, ;=right)
+- **Resize mode**: j/n/p/; (j=grow width, n=grow height, p=shrink height, ;=shrink width)
+- **Focus mode toggle**: Mod+Shift+Return (switch between tiling/floating focus)
 - **Launcher**: Mod+D runs Kupfer
 - **Kill window**: Alt+F4
 
@@ -132,6 +139,48 @@ This repo supports Claude Code's Chrome integration for browser-based testing an
 
 ### Usage
 Chrome integration enables testing of X11/GNOME configurations in browser-based tools, debugging web-based settings, and automating browser tasks.
+
+## Beads Issue Tracker
+
+This repo uses [Beads](https://github.com/steveyegge/beads) (`bd` command) for task tracking. Beads is a git-backed issue tracker designed for AI coding agents.
+
+### Key Commands
+
+```bash
+# List open issues
+bd list
+
+# Create a new issue
+bd create "Fix the widget"
+bd q "Quick issue"              # Returns only the ID
+
+# Work with issues
+bd show <id>                    # View issue details
+bd close <id>                   # Close an issue
+bd update <id> -s in_progress   # Update status
+bd comment <id> "Note here"     # Add a comment
+
+# Dependencies
+bd dep <id> blocks <other-id>   # Add dependency
+bd graph                        # Show dependency graph
+
+# Search and filter
+bd search "keyword"
+bd list -s open                 # Filter by status
+bd list -l bug                  # Filter by label
+```
+
+### Best Practices for Claude
+
+1. **Use `bd` commands** - Never manually edit `.beads/issues.jsonl`
+2. **Close issues with `bd close <id>`** - This properly updates timestamps and events
+3. **Track work in progress** - Use `bd update <id> -s in_progress` when starting work
+4. **Add comments** - Use `bd comment <id> "message"` for notes and progress updates
+5. **Check status** - Run `bd status` to see overview before starting work
+
+### File Structure
+- `.beads/issues.jsonl` - Issue database (do not edit directly)
+- `.beads/last-touched` - Currently active issue ID
 
 ## Notes
 
