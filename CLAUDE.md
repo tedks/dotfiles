@@ -182,6 +182,32 @@ bd list -l bug                  # Filter by label
 - `.beads/issues.jsonl` - Issue database (do not edit directly)
 - `.beads/last-touched` - Currently active issue ID
 
+## Night Light / Color Management
+
+GNOME's built-in Night Light doesn't work with i3 because it requires mutter to apply gamma shifts. This setup uses two tools instead:
+
+### xiccd
+Registers X11 displays with colord so they appear in GNOME Settings → Color. Without this, colord (and gsd-color) can't see your displays.
+
+### redshift
+Actually applies the color temperature shift via xrandr gamma. Runs independently of GNOME.
+
+**i3 config:**
+```
+exec --no-startup-id xiccd
+exec --no-startup-id redshift -l LAT:LON -t 6500:3000
+```
+
+**Manual control:**
+```bash
+redshift -p                    # Print current status
+redshift -O 3500               # One-shot: set to 3500K
+redshift -x                    # Reset to neutral
+pkill redshift                 # Stop redshift
+```
+
+**Why GNOME Night Light fails:** gsd-color detects night time and sets temperature, but relies on mutter's DisplayConfig D-Bus interface to apply gamma. Without mutter (we use i3), the gamma commands go nowhere.
+
 ## Notes
 
 - Emacs config assumes Source Code Pro font and solarized-light theme
