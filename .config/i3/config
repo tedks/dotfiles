@@ -9,11 +9,16 @@
 #
 # Please see http://i3wm.org/docs/userguide.html for a complete reference!
 
-# Disable focus follows mouse
-focus_follows_mouse no
+exec --no-startup-id dbus-send \
+    --session \
+    --print-reply=literal \
+    --dest=org.gnome.SessionManager \
+    "/org/gnome/SessionManager" \
+    org.gnome.SessionManager.RegisterClient \
+    "string:i3" \
+    "string:$DESKTOP_AUTOSTART_ID"
 
 set $mod Mod4
-set $alt Mod1
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
@@ -28,7 +33,10 @@ font pango:DejaVu Sans Mono 8
 # The font above is very space-efficient, that is, it looks good, sharp and
 # clear in small sizes. However, its unicode glyph coverage is limited, the old
 # X core fonts rendering does not support right-to-left and this being a bitmap
-# font, it doesn’t scale on retina/hidpi displays.
+# font, it doesn't scale on retina/hidpi displays.
+
+focus_follows_mouse no
+mouse_warping none
 
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
@@ -38,7 +46,7 @@ bindsym $mod+Return exec i3-sensible-terminal
 
 # kill focused window
 bindsym $mod+Shift+q kill
-bindsym $alt+F4 kill
+bindsym Mod1+F4 kill
 
 # start dmenu (a program launcher)
 # bindsym $mod+d exec dmenu_run
@@ -47,6 +55,8 @@ bindsym $alt+F4 kill
 # installed.
 # bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
 bindsym $mod+d exec kupfer
+#bindsym $mod+space exec kupfer
+#bindsym Ctrl+space exec kupfer
 
 # change focus
 bindsym $mod+j focus left
@@ -72,11 +82,11 @@ bindsym $mod+Shift+Down move down
 bindsym $mod+Shift+Up move up
 bindsym $mod+Shift+Right move right
 
-# split in horizontal orientation
-bindsym $mod+h split h
-
 # split in vertical orientation
-bindsym $mod+v split v
+bindsym $mod+h split v
+
+# split in horizontal orientation
+bindsym $mod+v split h
 
 # enter fullscreen mode for the focused container
 bindsym $mod+f fullscreen toggle
@@ -91,7 +101,7 @@ bindsym $mod+w layout toggle
 bindsym $mod+Shift+space floating toggle
 
 # change focus between tiling / floating windows
-bindsym $mod+space focus mode_toggle
+bindsym $mod+Shift+Return focus mode_toggle
 
 # focus the parent container
 bindsym $mod+a focus parent
@@ -138,14 +148,14 @@ mode "resize" {
         # Pressing right will grow the window’s width.
         # Pressing up will shrink the window’s height.
         # Pressing down will grow the window’s height.
-        bindsym j resize shrink width 10 px or 10 ppt
-        bindsym k resize grow height 10 px or 10 ppt
-        bindsym l resize shrink height 10 px or 10 ppt
-        bindsym semicolon resize grow width 10 px or 10 ppt
-        bindsym Shift+j resize shrink width 2 px or 2 ppt
-        bindsym Shift+k resize grow height 2 px or 2 ppt
-        bindsym Shift+l resize shrink height 2 px or 2 ppt
-        bindsym Shift+semicolon resize grow width 2 px or 2 ppt
+        bindsym j resize grow width 10 px or 10 ppt
+        bindsym n resize grow height 10 px or 10 ppt
+        bindsym p resize shrink height 10 px or 10 ppt
+        bindsym semicolon resize shrink width 10 px or 10 ppt
+        bindsym Shift+j resize grow width 2 px or 2 ppt
+        bindsym Shift+n resize grow height 2 px or 2 ppt
+        bindsym Shift+p resize shrink height 2 px or 2 ppt
+        bindsym Shift+semicolon resize shrink width 2 px or 2 ppt
 	
 
 
@@ -166,17 +176,10 @@ bindsym $mod+r mode "resize"
 # finds out, if available)
 bar {
         status_command i3status
-	font pango:DejaVu Sans Mono 8
-	position top
+        font pango:DejaVu Sans Mono 10
 }
 
-exec --no-startup-id dbus-send \
-    --session \
-    --print-reply=literal \
-    --dest=org.gnome.SessionManager \
-    "/org/gnome/SessionManager" \
-    org.gnome.SessionManager.RegisterClient \
-    "string:i3" \
-    "string:$DESKTOP_AUTOSTART_ID"
+# Sui wallet
+for_window [instance="crx_opcgpfmipidbgpenhmajoajpbobppdil" class="Google-chrome"] floating enable
 
-
+exec kupfer
