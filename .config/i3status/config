@@ -31,11 +31,11 @@ cpu_usage {
 }
 
 load {
-        format = "%1min %5min %15min"
+        format = "L: %1min %5min %15min"
 }
 
 wireless _first_ {
-        format_up = "W: %ip %essid %bitrate-%frequency-%quality)"
+        format_up = "W: %ip %essid %frequency@%quality (%bitrate)"
         format_down = "W: down"
 }
 
@@ -67,4 +67,3 @@ volume master {
 tztime local {
         format = "%Y-%m-%d %T %Z%z"
 }
-
