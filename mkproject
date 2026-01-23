@@ -1,0 +1,19 @@
+#!/bin/bash
+
+name="$1"
+path="$HOME/Projects"
+
+pushd $path
+
+echo "# sourced on dowork" >> .work_init
+bzr init-repo $name
+
+pushd $name
+
+bzr init trunk
+ln -s trunk workdir
+
+popd
+popd
+
+echo "Project $name created under $path."

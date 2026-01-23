@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+import argparse
+import subprocess as sp
+
+# convert -thumbnail 375x485 -background white -alpha remove
+# 2015-icse-homegrown-tools.pdf[0] 2015-icse-homegrown-tools.png
+
+DEFAULT_HEIGHT = 485
+DEFAULT_WIDTH  = 375
+
+CONVERT_BINARY_NAME = 'convert'
+THUMBNAIL_ARGUMENT  = '-thumbnail'
+
+def thumbnail_pdf(infile, outfile=None, page=0, size=None, opts=None):
+    if outfile is None:
+        if infile.endswith('.pdf'):
+            outfile = infile.replace('pdf', 'png')
+        else:
+            outfile = infile + '.png'
+
+    if size is None:
+        size = (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
+    if opts is None:
+        opts = ['-background', 'white',
+                '-alpha', 'remove']
+
+        try:
+            output = sp.check_output([CONVERT_BINARY_NAME, THUMBNAIL_ARGUMENT,
+                                      '{}x{}'.format(*size)]
+                                     + opts +
+                                     [infile + '[{}]'.format(page),
+                                      outfile],
+                                     stderr=sp.STDOUT, universal_newlines=True)
+            print(output, end='')
+            exit(0)
+        except sp.CalledProcessError as cpe:
+            print("Thumbnailer encountered an error:")
+            print(cpe.output)
+            exit(cpe.returncode)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', help='The PDF to thumbnail')
+    parser.add_argument('--out', '-o', help='output filename')
+    parser.add_argument('--page', '-p', help='the page to thumbnail', type=int)
+    # need to do multi-add for this param
+    # parser.add_argument('--other-opt')
+    # need to parse this so it can take:
+    # Wx (width)
+    # xH (height)
+    # WxH (width by height)
+    # parser.add_argument('--size', '-s', help='Size of the thumbnail')
+    
+    
+    args = parser.parse_args()
+    thumbnail_pdf(args.file, outfile=parser.out, page=args.page)
+    
+
+if __name__ == "__main__":
+    main()

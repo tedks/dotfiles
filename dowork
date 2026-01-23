@@ -1,0 +1,32 @@
+#!/bin/bash
+
+INITFILE=".work_init"
+WORKDIR="workdir"
+
+project=`basename $1`
+
+project_path=`ls -d ~/Projects/${1}`
+
+if [ -e "$project_path/$INITFILE" ]; then
+    pushd $project_path
+    . $project_path/$INITFILE
+    popd
+fi
+
+if [[ $hamster_track || $2 == "-t" ]]; then
+    if [ $hamster_string ]; then
+	hamster-cli start "$hamster_string"
+    else
+	hamster-cli start "$project@projects"
+    fi
+fi
+
+if [ -d "$project_path/$WORKDIR" ]; then
+    project_path="$project_path/$WORKDIR"
+fi
+
+pushd $project_path
+
+byobu -xRS $project
+
+popd

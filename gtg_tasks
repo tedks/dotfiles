@@ -1,0 +1,39 @@
+#!/usr/bin/python
+command = "gtcli list workdue"
+display_lines = 5
+
+import os, re, sys
+
+pipe = os.popen(command)
+
+if len(sys.argv) > 1 and sys.argv[1] == "-l":
+    display_lines = -1
+
+tasks = {}
+whitespace = re.compile('^\W*$')
+for line in pipe.readlines():
+    line = line.strip()
+    if line[-1] == ':':
+        continue
+    else:
+        chunks = filter(lambda s: not whitespace.match(s), line.split(" "))
+        out = " ".join(chunks[1:])
+        if not out.isspace():
+            tasks[chunks[0]] = out.strip()
+keys = tasks.keys()
+
+if len(keys) > 0:
+    printed = 0
+    for k in keys:
+        if display_lines > 0 and printed > display_lines:
+            break
+        v = tasks[k]
+        print "\t" + v
+        printed += 1
+    if display_lines > 0 and len(keys) > display_lines:
+        print "...and %d more unshown.\n" % (len(keys) - display_lines)
+else:
+    print "\tNo immediate pending tasks."
+
+
+    

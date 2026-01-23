@@ -1,0 +1,39 @@
+#!/usr/bin/python
+
+import sys
+from os import path, system, listdir
+from pipes import quote
+from deluge_add import DelugeAdder
+
+BASE_DEST = "/usr/share/warez/Downloads/what.cd"
+
+def add_torrent(tpath, destpath, rename_on_success=False):
+    da = DelugeAdder(BASE_DEST)
+    if not da.add_torrent(tpath, path=destpath):
+        print "Couldn't add torrent {}".format(tpath)
+        return
+    if rename_on_success:
+        system("mv \"%s\" \"%s\"" % (quote(tpath), quote(tpath)+".added"))
+    
+def whatcd_add_path(artist_rip_dir, dest=None):
+    if artist_rip_dir[-1] == '/':
+        artist_rip_dir = artist_rip_dir.rstrip('/')
+    if not dest:
+        dest = path.join(BASE_DEST, 
+                         path.basename(artist_rip_dir))
+    
+    for subdir in listdir(artist_rip_dir):
+        artist_rip_subdir = path.join(artist_rip_dir, subdir)
+
+        if path.isdir(artist_rip_subdir):
+            dest_subdir = path.join(dest, subdir)
+            whatcd_add_path(artist_rip_subdir, dest_subdir)
+        elif path.splitext(artist_rip_subdir)[1] == '.torrent':
+            add_torrent(artist_rip_subdir, dest)
+        else:
+            continue
+
+if __name__ == '__main__':
+    for d in sys.argv[1:]:
+        whatcd_add_path(d)
+    

@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+import random
+import sys
+
+def get_random_line(target_fname):
+    # get the target file lines
+    with open(target_fname, "r") as linef:
+        lines = linef.readlines()
+    return random.choice(lines)
+
+if __name__ == "__main__":
+    print get_random_line(sys.argv[1])
+    
