@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# needs to be 2.7 for hamster :-(
+#!/usr/bin/env python3
+# hamster integration is optional
 
 import argparse
 import os
