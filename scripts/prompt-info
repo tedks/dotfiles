@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# prompt-info: shared prompt/statusline info
+# Used by: PS1, Claude Code statusline
+
+# Colors (ANSI)
+GREEN='\033[01;32m'
+BLUE='\033[01;34m'
+YELLOW='\033[01;33m'
+RESET='\033[00m'
+
+# Basic info
+user="$(whoami)"
+host="$(hostname -s)"
+dir="$(pwd)"
+
+# Git branch (if in repo)
+git_info=""
+if git rev-parse --is-inside-work-tree &>/dev/null; then
+    branch="$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)"
+    if [[ -n "$branch" ]]; then
+        git_info=" ${YELLOW}(${branch})${RESET}"
+    fi
+fi
+
+printf "${GREEN}%s@%s${RESET}:${BLUE}%s${RESET}%s" "$user" "$host" "$dir" "$git_info"
