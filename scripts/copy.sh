@@ -7,6 +7,7 @@ DOT="$(git rev-parse --show-toplevel)"
 mkdir -p \
   "$DOT/usr/share/gnome-session/sessions" \
   "$DOT/usr/share/xsessions" \
+  "$DOT/.config/gnome-session/sessions" \
   "$DOT/.bin" \
   "$DOT/scripts"
 
@@ -26,6 +27,13 @@ if [ -f /usr/share/xsessions/gnome-plus-i3.desktop ]; then
 else
   echo "⚠️  Missing: /usr/share/xsessions/gnome-plus-i3.desktop"
 fi
+if [ -f "$HOME/.config/gnome-session/sessions/gnome-plus-i3.session" ]; then
+  cp -v "$HOME/.config/gnome-session/sessions/gnome-plus-i3.session" \
+        "$DOT/.config/gnome-session/sessions/"
+  copied_any=1
+else
+  echo "⚠️  Missing: $HOME/.config/gnome-session/sessions/gnome-plus-i3.session"
+fi
 
 # 3) Version hm-add under repo /.bin if present in your home
 if [ -f "$HOME/.bin/hm-add" ]; then
@@ -39,12 +47,15 @@ cat > "$DOT/scripts/install-gnome-i3" <<'EOF'
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+install -Dm644 "$ROOT/.config/gnome-session/sessions/gnome-plus-i3.session" \
+  "$HOME/.config/gnome-session/sessions/gnome-plus-i3.session"
+
 sudo install -Dm644 "$ROOT/usr/share/gnome-session/sessions/gnome-plus-i3.session" \
   /usr/share/gnome-session/sessions/gnome-plus-i3.session
 sudo install -Dm644 "$ROOT/usr/share/xsessions/gnome-plus-i3.desktop" \
   /usr/share/xsessions/gnome-plus-i3.desktop
 
-echo "✔ Installed GNOME+i3 session files to /usr/share/*"
+echo "✔ Installed GNOME+i3 session files to ~/.config/gnome-session and /usr/share/*"
 echo "Pick “GNOME + i3” from the GDM cog menu."
 EOF
 chmod +x "$DOT/scripts/install-gnome-i3"
@@ -77,6 +88,8 @@ add_paths=( "scripts/install-gnome-i3" "scripts/install-all" )
   add_paths+=("usr/share/gnome-session/sessions/gnome-plus-i3.session")
 [ -f "$DOT/usr/share/xsessions/gnome-plus-i3.desktop" ] && \
   add_paths+=("usr/share/xsessions/gnome-plus-i3.desktop")
+[ -f "$DOT/.config/gnome-session/sessions/gnome-plus-i3.session" ] && \
+  add_paths+=(".config/gnome-session/sessions/gnome-plus-i3.session")
 
 git -C "$DOT" add "${add_paths[@]}"
 

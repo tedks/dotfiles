@@ -1,11 +1,36 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# Install GNOME + i3 session for Ubuntu 24.04
+# Requires: gnome-flashback, i3
 set -euo pipefail
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-sudo install -Dm644 "$ROOT/usr/share/gnome-session/sessions/gnome-plus-i3.session" \
-  /usr/share/gnome-session/sessions/gnome-plus-i3.session
-sudo install -Dm644 "$ROOT/usr/share/xsessions/gnome-plus-i3.desktop" \
-  /usr/share/xsessions/gnome-plus-i3.desktop
+echo "=== Installing GNOME + i3 session ==="
 
-echo "✔ Installed GNOME+i3 session files to /usr/share/*"
-echo "Pick “GNOME + i3” from the GDM cog menu."
+# Install session file (system-level)
+echo "Installing session file..."
+sudo install -Dm644 "$ROOT/usr/share/gnome-session/sessions/gnome-plus-i3.session" \
+    /usr/share/gnome-session/sessions/gnome-plus-i3.session
+
+# Install xsession desktop file
+echo "Installing xsession desktop file..."
+sudo install -Dm644 "$ROOT/usr/share/xsessions/gnome-plus-i3.desktop" \
+    /usr/share/xsessions/gnome-plus-i3.desktop
+
+# Install systemd session target (required for SettingsDaemon on 24.04)
+echo "Installing systemd session target..."
+sudo install -Dm644 "$ROOT/usr/lib/systemd/user/gnome-session@gnome-plus-i3.target.d/session.conf" \
+    /usr/lib/systemd/user/gnome-session@gnome-plus-i3.target.d/session.conf
+
+# Install user-level session file
+echo "Installing user session file..."
+install -Dm644 "$ROOT/.config/gnome-session/sessions/gnome-plus-i3.session" \
+    "$HOME/.config/gnome-session/sessions/gnome-plus-i3.session"
+
+# Install i3 config
+echo "Installing i3 config..."
+install -Dm644 "$ROOT/.config/i3/config" "$HOME/.config/i3/config"
+
+echo ""
+echo "=== Installation complete ==="
+echo "Log out and select 'GNOME + i3' from the GDM session menu."
