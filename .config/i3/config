@@ -186,7 +186,8 @@ for_window [instance="crx_opcgpfmipidbgpenhmajoajpbobppdil" class="Google-chrome
 exec --no-startup-id xiccd
 
 # Night light (redshift) - GNOME's night light doesn't work without mutter
-# -l LAT:LON for location, -t DAY:NIGHT for color temps (6500K=neutral, 3000K=warm)
-exec --no-startup-id redshift -l 42.3:-71.0 -t 6500:3000
+# Uses geoclue for location (BeaconDB provider configured in /etc/geoclue/conf.d/)
+# Fallback: redshift -l LAT:LON -t 6500:3000
+exec --no-startup-id redshift
 
 exec kupfer

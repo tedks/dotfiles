@@ -190,12 +190,12 @@ GNOME's built-in Night Light doesn't work with i3 because it requires mutter to 
 Registers X11 displays with colord so they appear in GNOME Settings → Color. Without this, colord (and gsd-color) can't see your displays.
 
 ### redshift
-Actually applies the color temperature shift via xrandr gamma. Runs independently of GNOME.
+Actually applies the color temperature shift via xrandr gamma. Uses geoclue for location.
 
 **i3 config:**
 ```
 exec --no-startup-id xiccd
-exec --no-startup-id redshift -l LAT:LON -t 6500:3000
+exec --no-startup-id redshift
 ```
 
 **Manual control:**
@@ -204,6 +204,30 @@ redshift -p                    # Print current status
 redshift -O 3500               # One-shot: set to 3500K
 redshift -x                    # Reset to neutral
 pkill redshift                 # Stop redshift
+redshift -l LAT:LON            # Manual coordinates fallback
+```
+
+### Geoclue Setup (Ubuntu 24.04)
+
+Mozilla Location Service was retired, breaking geoclue's WiFi-based location.
+Configure BeaconDB as a replacement:
+
+```bash
+# /etc/geoclue/conf.d/90-beacondb.conf
+sudo tee /etc/geoclue/conf.d/90-beacondb.conf << 'EOF'
+[wifi]
+url=https://beacondb.net/v1/geolocate
+EOF
+
+# /etc/geoclue/conf.d/99-redshift.conf
+sudo tee /etc/geoclue/conf.d/99-redshift.conf << 'EOF'
+[redshift]
+allowed=true
+system=false
+users=
+EOF
+
+sudo systemctl restart geoclue
 ```
 
 **Why GNOME Night Light fails:** gsd-color detects night time and sets temperature, but relies on mutter's DisplayConfig D-Bus interface to apply gamma. Without mutter (we use i3), the gamma commands go nowhere.
