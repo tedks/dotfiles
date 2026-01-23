@@ -182,4 +182,11 @@ bar {
 # Sui wallet
 for_window [instance="crx_opcgpfmipidbgpenhmajoajpbobppdil" class="Google-chrome"] floating enable
 
+# Register displays with colord (for color profiles in gnome-control-center)
+exec --no-startup-id xiccd
+
+# Night light (redshift) - GNOME's night light doesn't work without mutter
+# -l LAT:LON for location, -t DAY:NIGHT for color temps (6500K=neutral, 3000K=warm)
+exec --no-startup-id redshift -l 42.3:-71.0 -t 6500:3000
+
 exec kupfer
