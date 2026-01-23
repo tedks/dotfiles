@@ -7,7 +7,7 @@ Personal dotfiles repository for a Linux desktop environment. Files mirror their
 ## Structure
 
 ```
-.config/           → ~/.config/        (XDG config: i3, i3status, gnome-sessions)
+.config/           → ~/.config/        (XDG config: i3, i3status, gnome-session)
 .emacs             → ~/.emacs          (Main Emacs config)
 .emacs.d/          → ~/.emacs.d/       (Custom elisp modules)
 .bin/              → ~/.bin/           (User scripts)
