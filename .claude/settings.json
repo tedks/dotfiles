@@ -1,0 +1,55 @@
+{
+  "cleanupPeriodDays": 3650,
+  "permissions": {
+    "allow": [
+      "Bash(gh pr view:*)",
+      "Bash(gh api:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git checkout:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(python3 -m unittest:*)",
+      "Bash(tree:*)",
+      "Bash(git -C /home/tedks/Projects/dotfiles log --oneline --all)",
+      "Bash(git -C /home/tedks/Projects/dotfiles log --format=\"%h %s\" --all)",
+      "Bash(git -C /home/tedks/Projects/dotfiles log --oneline -5)",
+      "Bash(git -C /home/tedks/Projects/dotfiles add CLAUDE.md)",
+      "Bash(git -C /home/tedks/Projects/dotfiles commit -m \"$\\(cat <<''EOF''\nAdd CLAUDE.md documenting dotfiles repo structure\n\nDocuments project structure, key components \\(GNOME+i3, Emacs, i3 config\\),\nscripts, and Nix/Home Manager integration with hm-add usage.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /home/tedks/Projects/dotfiles status)",
+      "Bash(xargs:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "notify-send 'Claude Code' 'Ready for your input' --urgency=normal"
+          }
+        ]
+      },
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "notify-send 'Claude Code' 'Permission required' --urgency=critical"
+          }
+        ]
+      }
+    ]
+  },
+  "model": "opus",
+  "statusLine": {
+    "type": "command",
+    "command": "printf '\\033[01;32m%s@%s\\033[00m:\\033[01;34m%s\\033[00m' \"$(whoami)\" \"$(hostname -s)\" \"$(pwd)\""
+  },
+  "alwaysThinkingEnabled": true
+}
