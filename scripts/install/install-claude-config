@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Install Claude Code configuration files as symlinks
+# Backs up existing config to ~/.claude/backup-TIMESTAMP/ before replacing
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CLAUDE_DIR="$HOME/.claude"
+BACKUP_DIR="$CLAUDE_DIR/backup-$(date +%Y%m%d-%H%M%S)"
+
+echo "=== Installing Claude Code configuration ==="
+
+# Create ~/.claude if it doesn't exist
+mkdir -p "$CLAUDE_DIR"
+
+# Files/dirs to symlink from repo to ~/.claude
+declare -A ITEMS=(
+    ["CLAUDE.md"]="$ROOT/.claude/CLAUDE.md"
+    ["settings.json"]="$ROOT/.claude/settings.json"
+    ["skills"]="$ROOT/.claude/skills"
+)
+
+backup_needed=false
+
+# Check if backup is needed
+for name in "${!ITEMS[@]}"; do
+    target="$CLAUDE_DIR/$name"
+    if [[ -e "$target" && ! -L "$target" ]]; then
+        backup_needed=true
+        break
+    fi
+    # Also backup if it's a symlink pointing somewhere else
+    if [[ -L "$target" ]]; then
+        current_link="$(readlink -f "$target" 2>/dev/null || true)"
+        expected="${ITEMS[$name]}"
+        if [[ "$current_link" != "$expected" ]]; then
+            backup_needed=true
+            break
+        fi
+    fi
+done
+
+# Create backup directory and move existing files
+if $backup_needed; then
+    echo "Backing up existing config to $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+
+    for name in "${!ITEMS[@]}"; do
+        target="$CLAUDE_DIR/$name"
+        if [[ -e "$target" || -L "$target" ]]; then
+            # Don't backup if already correctly symlinked
+            if [[ -L "$target" ]]; then
+                current_link="$(readlink -f "$target" 2>/dev/null || true)"
+                expected="${ITEMS[$name]}"
+                if [[ "$current_link" == "$expected" ]]; then
+                    echo "  $name: already symlinked correctly, skipping backup"
+                    continue
+                fi
+            fi
+            mv "$target" "$BACKUP_DIR/"
+            echo "  Backed up: $name"
+        fi
+    done
+fi
+
+# Create symlinks
+for name in "${!ITEMS[@]}"; do
+    target="$CLAUDE_DIR/$name"
+    source="${ITEMS[$name]}"
+
+    if [[ -L "$target" ]]; then
+        current_link="$(readlink -f "$target" 2>/dev/null || true)"
+        if [[ "$current_link" == "$source" ]]; then
+            echo "✔ $name: already symlinked"
+            continue
+        fi
+        rm "$target"
+    fi
+
+    ln -s "$source" "$target"
+    echo "✔ Linked $name -> $source"
+done
+
+echo ""
+echo "=== Installation complete ==="
+if $backup_needed; then
+    echo "Previous config backed up to: $BACKUP_DIR"
+fi
+echo "Note: settings.local.json is machine-specific and not managed by this script."

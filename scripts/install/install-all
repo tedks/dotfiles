@@ -11,6 +11,9 @@ if [ -f "$ROOT/.bin/hm-add" ]; then
 fi
 
 # Install GNOME+i3 session files
-"$ROOT/scripts/install-gnome-i3"
+"$ROOT/scripts/install/install-gnome-i3"
+
+# Install Claude Code configuration
+"$ROOT/scripts/install/install-claude-config"
 
 echo "✅ install-all complete."
