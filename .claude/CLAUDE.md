@@ -96,3 +96,41 @@ When editing agent instructions:
 2. If symlinks don't exist, create them: `ln -s AGENTS.md CLAUDE.md`
 3. Only break the symlink if a specific agent needs divergent instructions
 
+# Multi-Agent Skills
+
+Skills in `~/.claude/skills/` for orchestrating multiple AI agents:
+
+## ask-agent
+
+Query another agent (Claude, Codex) and get the response back synchronously. Use for getting a second opinion or different perspective.
+
+```bash
+/ask-agent codex "What do you think of this auth approach?"
+/ask-agent claude -m opus "Review this design"
+```
+
+The response comes back to the calling agent - useful as a subagent pattern.
+
+## spawn-agent
+
+Spawn agents in tmux windows for parallel, interactive work. Use for fan-out workflows where multiple agents work simultaneously.
+
+```bash
+/spawn-agent chaos:review codex ./project "Review the auth module"
+/spawn-agent chaos:claude-help claude . "Help me debug this"
+```
+
+Includes helper scripts:
+- `claude-send.sh` - Send messages to running Claude instances (handles timing issues)
+- `claude-spawn.sh` - Claude-specific spawner with resume support
+
+## stacked-prs
+
+Detailed workflow guidance for managing stacked PRs. Triggers when discussing PR stacks, rebasing stacks, or merging stacked PRs.
+
+Key principles:
+- Only bottom PR targets main; others target the PR below
+- Merge one at a time, rebase up the stack
+- Never use `-X ours` or `-X theirs` - read and integrate conflicts
+- Don't delete branches until whole stack is merged
+
