@@ -24,6 +24,7 @@
     fd
     jq
     htop
+    vim
 
     # Add more packages here as needed
   ];
@@ -55,7 +56,7 @@
   # Git configuration (customize as needed)
   programs.git = {
     enable = true;
-    userName = "tedks";
-    # userEmail = "your-email@example.com";  # Uncomment and set your email
+    settings.user.name = "tedks";
+    # settings.user.email = "your-email@example.com";  # Uncomment and set your email
   };
 }
