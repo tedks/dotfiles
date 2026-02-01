@@ -47,6 +47,33 @@ Write what you can defend.
 
 # Version Control
 
+## Branch and PR Workflow (CRITICAL)
+
+**Never commit directly to main.** All changes must go through branches and PRs:
+
+1. **Create a feature branch** before making any changes:
+   ```bash
+   git checkout -b feature/descriptive-name
+   ```
+
+2. **Commit early and often** with granular, well-described commits
+
+3. **Push proactively** - don't let local changes accumulate:
+   ```bash
+   git push -u origin feature/descriptive-name
+   ```
+
+4. **Create a draft PR immediately** after first push:
+   ```bash
+   gh pr create --draft --title "WIP: Feature name" --body "Description"
+   ```
+
+5. **Keep PRs updated** - push after every logical commit
+
+This prevents divergent local states across machines and enables collaboration/review.
+
+## Commit Guidelines
+
 Commit and push often.
 
 Make granular commits with detailed commit messages.
