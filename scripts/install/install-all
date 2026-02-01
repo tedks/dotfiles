@@ -2,6 +2,19 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Parse args
+WITH_NIX=false
+for arg in "$@"; do
+  case "$arg" in
+    --with-nix) WITH_NIX=true ;;
+    --help|-h)
+      echo "Usage: install-all [--with-nix]"
+      echo "  --with-nix  Install Nix and Home Manager (bootstrap from scratch)"
+      exit 0
+      ;;
+  esac
+done
+
 # Ensure ~/.bin and link hm-add if present in repo
 mkdir -p "$HOME/.bin"
 if [ -f "$ROOT/.bin/hm-add" ]; then
@@ -15,5 +28,10 @@ fi
 
 # Install Claude Code configuration
 "$ROOT/scripts/install/install-claude-config"
+
+# Install Nix + Home Manager (if requested)
+if [ "$WITH_NIX" = true ]; then
+  "$ROOT/scripts/install/install-nix-hm"
+fi
 
 echo "✅ install-all complete."
