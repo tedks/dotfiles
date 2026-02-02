@@ -35,6 +35,9 @@ echo "Done. Make sure ~/.bin is in your PATH."
 # Install Claude Code configuration
 "$ROOT/scripts/install/install-claude-config"
 
+# Install Codex configuration
+"$ROOT/scripts/install/install-codex-config"
+
 # Install GNOME+i3 session files (if requested)
 if [ "$WITH_GNOME_I3" = true ]; then
   "$ROOT/scripts/install/install-gnome-i3"

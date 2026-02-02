@@ -1,0 +1,61 @@
+model = "gpt-5.2-codex"
+model_reasoning_effort = "xhigh"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+web_search = "live"
+suppress_unstable_features_warning = true
+
+[features]
+apply_patch_freeform = true
+child_agents_md = true
+collab = true
+collaboration_modes = true
+elevated_windows_sandbox = true
+enable_request_compression = true
+exec_policy = true
+experimental_windows_sandbox = true
+remote_compaction = true
+remote_models = true
+shell_snapshot = true
+shell_tool = true
+steer = true
+tui2 = false
+undo = true
+unified_exec = true
+
+[tools]
+view_image = true
+
+[projects."/home/tedks/Projects/chaos/chaos-speech"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/chaos/chaos-speech-2"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/storage"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/chaos"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/chaos/chaos-speech-root"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/ai"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/dotfiles"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/slowed"]
+trust_level = "trusted"
+
+[projects."/home/tedks/Projects/goals"]
+trust_level = "trusted"
+
+[notice]
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+hide_full_access_warning = true
+
+[notice.model_migrations]
+"gpt-5.2" = "gpt-5.2-codex"
