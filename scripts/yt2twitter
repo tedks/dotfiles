@@ -17,6 +17,7 @@ OUTPUT_PATH=""
 MAX_RES="1080"
 INFO_ONLY=false
 NO_COOKIES=false
+DEBUG=false
 
 print_help() {
     cat << 'EOF'
@@ -28,6 +29,7 @@ USAGE:
     yt2twitter <youtube-url> --720p             Limit to 720p (smaller files)
     yt2twitter <youtube-url> --info             Show video info only
     yt2twitter <youtube-url> --no-cookies       Skip cookie extraction (public videos)
+    yt2twitter <youtube-url> --debug            Keep temp files for debugging
     yt2twitter --help                           Show this help
 
 TWITTER BLUE SPECS:
@@ -50,6 +52,15 @@ EOF
 }
 
 cleanup() {
+    if $DEBUG; then
+        if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
+            echo "Debug: temp files preserved at $TEMP_DIR"
+        fi
+        if [[ -n "$COOKIES_FILE" && -f "$COOKIES_FILE" ]]; then
+            echo "Debug: cookies file preserved at $COOKIES_FILE"
+        fi
+        return
+    fi
     if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
         rm -rf "$TEMP_DIR"
     fi
@@ -146,17 +157,22 @@ download_video() {
     local url="$1"
     local output_template="$2"
 
+    # YouTube blocks h264 (avc1) and opus (webm audio) formats with 403 errors
+    # Prefer VP9 video + m4a audio - works with older ffmpeg (AV1 needs ffmpeg 4.0+)
+    # Falls back to any format if VP9 unavailable
+    local format_spec="bestvideo[height<=${MAX_RES}][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=${MAX_RES}][vcodec^=vp9]+bestaudio/bestvideo[height<=${MAX_RES}]+bestaudio[ext=m4a]/best[height<=${MAX_RES}]"
+
     echo "Downloading video..."
     if [[ -n "$COOKIES_FILE" && -f "$COOKIES_FILE" ]]; then
         yt-dlp \
             --cookies "$COOKIES_FILE" \
-            -f "bestvideo[height<=${MAX_RES}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${MAX_RES}]+bestaudio/best[height<=${MAX_RES}]" \
+            -f "$format_spec" \
             --merge-output-format mp4 \
             -o "$output_template" \
             "$url"
     else
         yt-dlp \
-            -f "bestvideo[height<=${MAX_RES}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${MAX_RES}]+bestaudio/best[height<=${MAX_RES}]" \
+            -f "$format_spec" \
             --merge-output-format mp4 \
             -o "$output_template" \
             "$url"
@@ -222,6 +238,10 @@ main() {
                 ;;
             --no-cookies)
                 NO_COOKIES=true
+                shift
+                ;;
+            --debug)
+                DEBUG=true
                 shift
                 ;;
             --720p)
