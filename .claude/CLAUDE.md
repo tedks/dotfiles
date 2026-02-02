@@ -98,6 +98,8 @@ When editing agent instructions:
 
 # Multi-Agent Skills
 
+**Always use these skills for multi-agent work. Do not improvise with manual tmux commands.**
+
 Skills in `~/.claude/skills/` for orchestrating multiple AI agents:
 
 ## ask-agent
@@ -123,6 +125,15 @@ Spawn agents in tmux windows for parallel, interactive work. Use for fan-out wor
 Includes helper scripts:
 - `claude-send.sh` - Send messages to running Claude instances (handles timing issues)
 - `claude-spawn.sh` - Claude-specific spawner with resume support
+
+### Communicating with Running Agents
+
+**Always use `claude-send.sh` to message running Claude instances.** Do not manually attach to tmux and type, and do not use raw `tmux send-keys` — this causes timing issues and garbled input.
+```bash
+claude-send : "Your message here"
+```
+
+If `claude-send` isn't working, tell me rather than falling back to manual methods.
 
 ## stacked-prs
 
