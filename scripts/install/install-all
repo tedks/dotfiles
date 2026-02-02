@@ -1,37 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Parse args
 WITH_NIX=false
+WITH_GNOME_I3=false
 for arg in "$@"; do
   case "$arg" in
     --with-nix) WITH_NIX=true ;;
+    --with-gnome-i3) WITH_GNOME_I3=true ;;
     --help|-h)
-      echo "Usage: install-all [--with-nix]"
-      echo "  --with-nix  Install Nix and Home Manager (bootstrap from scratch)"
+      echo "Usage: install-all [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  --with-gnome-i3  Install GNOME+i3 session files (requires sudo)"
+      echo "  --with-nix       Install Nix and Home Manager (bootstrap from scratch)"
+      echo "  --help, -h       Show this help message"
       exit 0
       ;;
   esac
 done
 
-# Ensure ~/.bin and link hm-add if present in repo
+# Link all scripts from repo's .bin/ to ~/.bin/
+echo "=== Installing scripts to ~/.bin/ ==="
 mkdir -p "$HOME/.bin"
-if [ -f "$ROOT/.bin/hm-add" ]; then
-  ln -sf "$ROOT/.bin/hm-add" "$HOME/.bin/hm-add"
-  chmod +x "$HOME/.bin/hm-add"
-  echo "✔ Linked hm-add to ~/.bin/hm-add"
-fi
-
-# Install GNOME+i3 session files
-"$ROOT/scripts/install/install-gnome-i3"
+for script in "$ROOT/.bin/"*; do
+  [ -e "$script" ] || continue
+  name="$(basename "$script")"
+  ln -sf "$script" "$HOME/.bin/$name"
+  echo "  Linked $name"
+done
+echo "Done. Make sure ~/.bin is in your PATH."
 
 # Install Claude Code configuration
 "$ROOT/scripts/install/install-claude-config"
+
+# Install GNOME+i3 session files (if requested)
+if [ "$WITH_GNOME_I3" = true ]; then
+  "$ROOT/scripts/install/install-gnome-i3"
+fi
 
 # Install Nix + Home Manager (if requested)
 if [ "$WITH_NIX" = true ]; then
   "$ROOT/scripts/install/install-nix-hm"
 fi
 
-echo "✅ install-all complete."
+echo ""
+echo "install-all complete."

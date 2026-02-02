@@ -3,7 +3,7 @@
 # Requires: gnome-flashback, i3
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 echo "=== Installing GNOME + i3 session ==="
 
