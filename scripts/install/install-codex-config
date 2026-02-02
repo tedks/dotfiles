@@ -23,6 +23,8 @@ mkdir -p "$CODEX_DIR"
 
 # Files/dirs to symlink from repo to ~/.codex
 declare -A ITEMS=(
+    ["AGENTS.md"]="$ROOT/.codex/AGENTS.md"
+    ["CLAUDE.md"]="$ROOT/.codex/CLAUDE.md"
     ["config.toml"]="$ROOT/.codex/config.toml"
     ["rules"]="$ROOT/.codex/rules"
 )
