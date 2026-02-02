@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Install Codex configuration files as symlinks
+# Backs up existing config to ~/.codex/backup-TIMESTAMP/ before replacing
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CODEX_DIR="$HOME/.codex"
+BACKUP_DIR="$CODEX_DIR/backup-$(date +%Y%m%d-%H%M%S)"
+
+is_correct_link() {
+    local target="$1"
+    local expected="$2"
+    [[ -L "$target" ]] || return 1
+    local current
+    current="$(readlink -f "$target" 2>/dev/null || true)"
+    [[ "$current" == "$expected" ]]
+}
+
+echo "=== Installing Codex configuration ==="
+
+# Create ~/.codex if it doesn't exist
+mkdir -p "$CODEX_DIR"
+
+# Files/dirs to symlink from repo to ~/.codex
+declare -A ITEMS=(
+    ["config.toml"]="$ROOT/.codex/config.toml"
+    ["rules"]="$ROOT/.codex/rules"
+)
+
+SKILLS_DIR="$ROOT/.codex/skills"
+
+backup_needed=false
+
+# Check if backup is needed for core items
+for name in "${!ITEMS[@]}"; do
+    target="$CODEX_DIR/$name"
+    expected="${ITEMS[$name]}"
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        if ! is_correct_link "$target" "$expected"; then
+            backup_needed=true
+            break
+        fi
+    fi
+done
+
+# Check if backup is needed for skills
+if [[ -d "$SKILLS_DIR" ]]; then
+    for skill in "$SKILLS_DIR"/*; do
+        [[ -d "$skill" ]] || continue
+        name="$(basename "$skill")"
+        target="$CODEX_DIR/skills/$name"
+        if [[ -e "$target" || -L "$target" ]]; then
+            if ! is_correct_link "$target" "$skill"; then
+                backup_needed=true
+                break
+            fi
+        fi
+    done
+fi
+
+# Create backup directory and move existing files
+if $backup_needed; then
+    echo "Backing up existing config to $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+
+    for name in "${!ITEMS[@]}"; do
+        target="$CODEX_DIR/$name"
+        expected="${ITEMS[$name]}"
+        if [[ -e "$target" || -L "$target" ]]; then
+            if is_correct_link "$target" "$expected"; then
+                echo "  $name: already symlinked correctly, skipping backup"
+                continue
+            fi
+            mv "$target" "$BACKUP_DIR/"
+            echo "  Backed up: $name"
+        fi
+    done
+
+    if [[ -d "$SKILLS_DIR" ]]; then
+        for skill in "$SKILLS_DIR"/*; do
+            [[ -d "$skill" ]] || continue
+            name="$(basename "$skill")"
+            target="$CODEX_DIR/skills/$name"
+            if [[ -e "$target" || -L "$target" ]]; then
+                if is_correct_link "$target" "$skill"; then
+                    echo "  skills/$name: already symlinked correctly, skipping backup"
+                    continue
+                fi
+                mv "$target" "$BACKUP_DIR/"
+                echo "  Backed up: skills/$name"
+            fi
+        done
+    fi
+fi
+
+# Create symlinks for core items
+for name in "${!ITEMS[@]}"; do
+    target="$CODEX_DIR/$name"
+    source="${ITEMS[$name]}"
+
+    if [[ ! -e "$source" ]]; then
+        echo "Skipping missing source: $source"
+        continue
+    fi
+
+    if is_correct_link "$target" "$source"; then
+        echo "✔ $name: already symlinked"
+        continue
+    fi
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        rm -rf "$target"
+    fi
+
+    ln -s "$source" "$target"
+    echo "✔ Linked $name -> $source"
+
+done
+
+# Create symlinks for skills (per-skill to preserve ~/.codex/skills/.system)
+if [[ -d "$SKILLS_DIR" ]]; then
+    mkdir -p "$CODEX_DIR/skills"
+    for skill in "$SKILLS_DIR"/*; do
+        [[ -d "$skill" ]] || continue
+        name="$(basename "$skill")"
+        target="$CODEX_DIR/skills/$name"
+
+        if is_correct_link "$target" "$skill"; then
+            echo "✔ skills/$name: already symlinked"
+            continue
+        fi
+
+        if [[ -e "$target" || -L "$target" ]]; then
+            rm -rf "$target"
+        fi
+
+        ln -s "$skill" "$target"
+        echo "✔ Linked skills/$name -> $skill"
+    done
+fi
+
+echo ""
+echo "=== Installation complete ==="
+if $backup_needed; then
+    echo "Previous config backed up to: $BACKUP_DIR"
+fi
+echo "Note: auth.json, history.jsonl, sessions/, and cache files are machine-specific and not managed by this script."

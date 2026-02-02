@@ -52,12 +52,15 @@ Key packages: magit, flymake, ido/flx, ace-window, tuareg (OCaml), AUCTeX
 **`scripts/install/install-all`** - Deploy to a new machine:
 - Symlinks all `.bin/` scripts to `~/.bin/`
 - Installs Claude Code configuration
+- Installs Codex configuration
 - Optional: `--with-gnome-i3` installs GNOME+i3 session files (requires sudo)
 - Optional: `--with-nix` bootstraps Nix and Home Manager
 
 **`scripts/install/install-gnome-i3`** - Install GNOME+i3 session only (requires sudo)
 
 **`scripts/install/install-claude-config`** - Symlink Claude Code config to `~/.claude/`
+
+**`scripts/install/install-codex-config`** - Symlink Codex config to `~/.codex/`
 
 **`scripts/install/install-nix-hm`** - Bootstrap Nix and Home Manager from scratch
 
