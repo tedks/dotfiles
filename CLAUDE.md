@@ -27,7 +27,7 @@ Hybrid desktop: GNOME Flashback services + i3 window manager.
 - `usr/lib/systemd/user/gnome-session@gnome-plus-i3.target.d/session.conf` - systemd target (required for Ubuntu 24.04)
 - `.config/gnome-session/sessions/gnome-plus-i3.session` - user-level override
 
-**Install:** Run `scripts/install-gnome-i3` then select "GNOME + i3" from GDM.
+**Install:** Run `scripts/install/install-gnome-i3` then select "GNOME + i3" from GDM.
 
 ### i3 Config (`.config/i3/config`)
 - **Mod key**: Super (Mod4)
@@ -49,14 +49,17 @@ Key packages: magit, flymake, ido/flx, ace-window, tuareg (OCaml), AUCTeX
 
 ### Scripts
 
-**`scripts/copy.sh`** - Main repo management script:
-- Run from anywhere in repo to sync from system
-- Generates `install-all` and `install-gnome-i3` scripts
-- Auto-commits changes to git
+**`scripts/install/install-all`** - Deploy to a new machine:
+- Symlinks all `.bin/` scripts to `~/.bin/`
+- Installs Claude Code configuration
+- Optional: `--with-gnome-i3` installs GNOME+i3 session files (requires sudo)
+- Optional: `--with-nix` bootstraps Nix and Home Manager
 
-**`scripts/install-all`** - Deploy to a new machine:
-- Symlinks `.bin/` scripts
-- Installs GNOME+i3 session files (requires sudo)
+**`scripts/install/install-gnome-i3`** - Install GNOME+i3 session only (requires sudo)
+
+**`scripts/install/install-claude-config`** - Symlink Claude Code config to `~/.claude/`
+
+**`scripts/install/install-nix-hm`** - Bootstrap Nix and Home Manager from scratch
 
 **`.bin/hm-add`** - Home Manager helper (NixOS):
 - Adds packages to `~/.config/home-manager/home.nix`
@@ -111,22 +114,20 @@ nixpkgs.config.allowUnfree = true;
 
 ### Adding a new dotfile
 1. Place file in repo mirroring its destination path
-2. Run `scripts/copy.sh` to regenerate install scripts
+2. If it's a script, add a symlink in `.bin/` pointing to `../scripts/<script>`
 3. Commit and push
 
 ### Installing on a new machine
 ```bash
 git clone <repo> ~/Projects/dotfiles
 cd ~/Projects/dotfiles
-./scripts/install-all
-# Select "GNOME + i3" from login screen
+./scripts/install/install-all                    # Basic install (scripts + Claude config)
+./scripts/install/install-all --with-gnome-i3   # Include GNOME+i3 session (graphical machines)
+./scripts/install/install-all --with-nix        # Include Nix + Home Manager bootstrap
 ```
 
 ### Syncing changes from system to repo
-```bash
-cd ~/Projects/dotfiles
-./scripts/copy.sh
-```
+Copy modified files manually to their mirrored paths in the repo, then commit.
 
 ## Chrome Integration
 
