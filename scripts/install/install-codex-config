@@ -22,9 +22,9 @@ echo "=== Installing Codex configuration ==="
 mkdir -p "$CODEX_DIR"
 
 # Files/dirs to symlink from repo to ~/.codex
+# AGENTS.md symlinks to ~/.claude/CLAUDE.md (source of truth for global instructions)
 declare -A ITEMS=(
-    ["AGENTS.md"]="$ROOT/.codex/AGENTS.md"
-    ["CLAUDE.md"]="$ROOT/.codex/CLAUDE.md"
+    ["AGENTS.md"]="$HOME/.claude/CLAUDE.md"
     ["config.toml"]="$ROOT/.codex/config.toml"
     ["rules"]="$ROOT/.codex/rules"
 )
