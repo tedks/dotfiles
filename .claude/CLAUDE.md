@@ -169,7 +169,7 @@ When editing agent instructions:
 
 **Always use these skills for multi-agent work. Do not improvise with manual tmux commands.**
 
-Skills in `~/.claude/skills/` for orchestrating multiple AI agents:
+Skills for orchestrating multiple AI agents (invoke via `/skill-name`):
 
 ## ask-agent
 
@@ -191,18 +191,15 @@ Spawn agents in tmux windows for parallel, interactive work. Use for fan-out wor
 /spawn-agent chaos:claude-help claude . "Help me debug this"
 ```
 
-Includes helper scripts:
+Includes helper scripts in the skill's `scripts/` directory:
 - `claude-send.sh` - Send messages to running Claude instances (handles timing issues)
 - `claude-spawn.sh` - Claude-specific spawner with resume support
 
 ### Communicating with Running Agents
 
-**Always use `claude-send.sh` to message running Claude instances.** Do not manually attach to tmux and type, and do not use raw `tmux send-keys` — this causes timing issues and garbled input.
-```bash
-claude-send : "Your message here"
-```
+**Always use the `claude-send.sh` script from the spawn-agent skill to message running Claude instances.** Do not manually attach to tmux and type, and do not use raw `tmux send-keys` — this causes timing issues and garbled input.
 
-If `claude-send` isn't working, tell me rather than falling back to manual methods.
+If `claude-send.sh` isn't working, tell me rather than falling back to manual methods.
 
 ## stacked-prs
 
