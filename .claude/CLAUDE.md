@@ -86,6 +86,8 @@ Always use the /stacked-prs skill (see skills in this document for more).
 
 Always consider if there are multiple logical PRs that can be made from a single big change. Make "stacked" PRs if this occurs so that we can iterate on each of them independently.
 
+Only the bottom PR in a stack targets main. Each subsequent PR targets the branch below it. This ensures each PR's diff shows only its own changes, not the cumulative changes from the entire stack.
+
 When merging stacked PRs, merge the root PR into main, then rebase the PR up the stack on main.
 
 Do not delete branches until the whole stack is merged, for recoverability.
