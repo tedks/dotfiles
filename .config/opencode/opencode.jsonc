@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "framework0-llama": {
+      "name": "framework0 llama.cpp",
+      "npm": "@ai-sdk/openai-compatible",
+      "api": "http://192.168.1.158:8081/v1",
+      "options": {
+        "apiKey": "sk-no-key-required"
+      },
+      "models": {
+        "DeepHermes-3-Llama-3-8B-Preview-abliterated-Q4_K_M.gguf": {
+          "name": "DeepHermes-3-Llama-3-8B-Preview-abliterated-Q4_K_M",
+          "attachment": false,
+          "reasoning": false,
+          "temperature": true,
+          "tool_call": false,
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 16384,
+            "output": 2048
+          }
+        }
+      }
+    },
+
+    // Optional: OpenWebUI's OpenAI-compatible endpoint
+    // Set OPENWEBUI_API_KEY if/when API-key auth is enabled in OpenWebUI.
+    "framework0-openwebui": {
+      "name": "framework0 OpenWebUI",
+      "npm": "@ai-sdk/openai-compatible",
+      "api": "http://192.168.1.158:3000/api/v1",
+      "options": {
+        "apiKey": "{env:OPENWEBUI_API_KEY}"
+      },
+      "models": {
+        "DeepHermes-3-Llama-3-8B-Preview-abliterated-Q4_K_M.gguf": {
+          "name": "DeepHermes-3-Llama-3-8B-Preview-abliterated-Q4_K_M"
+        }
+      }
+    }
+  },
+  "tools": {
+    "question": false,
+    "todowrite": false
+  },
+  "model": "framework0-llama/DeepHermes-3-Llama-3-8B-Preview-abliterated-Q4_K_M.gguf"
+}

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Install OpenCode global configuration as symlink
+# Backs up existing config to ~/.config/opencode/backup-TIMESTAMP/ before replacing
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+OPENCODE_DIR="$HOME/.config/opencode"
+BACKUP_DIR="$OPENCODE_DIR/backup-$(date +%Y%m%d-%H%M%S)"
+TARGET="$OPENCODE_DIR/opencode.jsonc"
+SOURCE="$ROOT/.config/opencode/opencode.jsonc"
+
+echo "=== Installing OpenCode configuration ==="
+
+mkdir -p "$OPENCODE_DIR"
+
+if [[ ! -e "$SOURCE" ]]; then
+    echo "Skipping missing source: $SOURCE"
+    exit 0
+fi
+
+backup_needed=false
+if [[ -e "$TARGET" || -L "$TARGET" ]]; then
+    if [[ -L "$TARGET" ]]; then
+        current_link="$(readlink -f "$TARGET" 2>/dev/null || true)"
+        if [[ "$current_link" != "$SOURCE" ]]; then
+            backup_needed=true
+        fi
+    else
+        backup_needed=true
+    fi
+fi
+
+if $backup_needed; then
+    echo "Backing up existing config to $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+    mv "$TARGET" "$BACKUP_DIR/"
+    echo "  Backed up: opencode.jsonc"
+fi
+
+if [[ -L "$TARGET" ]]; then
+    current_link="$(readlink -f "$TARGET" 2>/dev/null || true)"
+    if [[ "$current_link" == "$SOURCE" ]]; then
+        echo "✔ opencode.jsonc: already symlinked"
+        exit 0
+    fi
+    rm "$TARGET"
+fi
+
+ln -s "$SOURCE" "$TARGET"
+echo "✔ Linked opencode.jsonc -> $SOURCE"
+
+echo ""
+echo "=== Installation complete ==="
+if $backup_needed; then
+    echo "Previous config backed up to: $BACKUP_DIR"
+fi
+echo "Note: auth state, history, sessions, and cache files are machine-specific and not managed by this script."
