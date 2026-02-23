@@ -9,7 +9,7 @@ personality = "pragmatic"
 [features]
 apply_patch_freeform = true
 child_agents_md = true
-collab = true
+multi_agent = true
 collaboration_modes = true
 elevated_windows_sandbox = true
 enable_request_compression = true
