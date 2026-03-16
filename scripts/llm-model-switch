@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# llm-model-switch: list and switch GGUF models used by local llama.cpp compose setup.
+# - --list prints: <index>\t<model_filename>\t<is_current>
+# - --switch accepts either index (from --list) or exact filename
+#
+# Defaults can be overridden with:
+#   LLM_MODELS_DIR=/path/to/models
+#   LLM_ENV_FILE=/path/to/.env
+
+set -euo pipefail
+
+MODELS_DIR="${LLM_MODELS_DIR:-$HOME/Projects/ai/ait_local_chatbot/models}"
+ENV_FILE="${LLM_ENV_FILE:-$HOME/Projects/ai/ait_local_chatbot/.env}"
+
+ACTION=""
+SWITCH_TARGET=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  llm-model-switch --list [--models-dir <dir>] [--env-file <file>]
+  llm-model-switch --switch <index|model-name> [--models-dir <dir>] [--env-file <file>]
+  llm-model-switch --help
+
+Output format for --list:
+  <index>\t<model_filename>\t<is_current>
+  where is_current is 1 if MODEL in env-file matches, else 0
+EOF
+}
+
+fail() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --list)
+      [[ -z "$ACTION" ]] || fail "choose only one action: --list or --switch"
+      ACTION="list"
+      shift
+      ;;
+    --switch)
+      [[ -z "$ACTION" ]] || fail "choose only one action: --list or --switch"
+      ACTION="switch"
+      SWITCH_TARGET="${2:-}"
+      [[ -n "$SWITCH_TARGET" ]] || fail "--switch requires <index|model-name>"
+      shift 2
+      ;;
+    --models-dir)
+      MODELS_DIR="${2:-}"
+      [[ -n "$MODELS_DIR" ]] || fail "--models-dir requires a value"
+      shift 2
+      ;;
+    --env-file)
+      ENV_FILE="${2:-}"
+      [[ -n "$ENV_FILE" ]] || fail "--env-file requires a value"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "unknown option: $1 (use --help)"
+      ;;
+  esac
+done
+
+[[ -n "$ACTION" ]] || {
+  usage
+  exit 1
+}
+
+[[ -d "$MODELS_DIR" ]] || fail "models dir not found: $MODELS_DIR"
+
+current_model=""
+if [[ -f "$ENV_FILE" ]]; then
+  current_model="$(sed -n 's/^MODEL=//p' "$ENV_FILE" | head -n1)"
+  current_model="${current_model%\"}"
+  current_model="${current_model#\"}"
+  current_model="${current_model%\'}"
+  current_model="${current_model#\'}"
+fi
+
+declare -a MODELS=()
+while IFS= read -r file; do
+  # For split GGUF files, only expose part 00001 as the selectable entry.
+  if [[ "$file" =~ -([0-9]{5})-of-([0-9]{5})\.gguf$ ]]; then
+    [[ "${BASH_REMATCH[1]}" == "00001" ]] || continue
+  fi
+  MODELS+=("$file")
+done < <(find "$MODELS_DIR" -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' | LC_ALL=C sort)
+
+[[ "${#MODELS[@]}" -gt 0 ]] || fail "no .gguf models found in $MODELS_DIR"
+
+print_models() {
+  local i idx model is_current
+  for i in "${!MODELS[@]}"; do
+    idx=$((i + 1))
+    model="${MODELS[$i]}"
+    is_current=0
+    [[ "$model" == "$current_model" ]] && is_current=1
+    printf '%d\t%s\t%d\n' "$idx" "$model" "$is_current"
+  done
+}
+
+resolve_target_model() {
+  local target="$1"
+  local n idx i
+  n="${#MODELS[@]}"
+
+  if [[ "$target" =~ ^[0-9]+$ ]]; then
+    idx="$target"
+    (( idx >= 1 && idx <= n )) || fail "index out of range: $idx (valid: 1..$n)"
+    echo "${MODELS[$((idx - 1))]}"
+    return
+  fi
+
+  for i in "${!MODELS[@]}"; do
+    if [[ "${MODELS[$i]}" == "$target" ]]; then
+      echo "${MODELS[$i]}"
+      return
+    fi
+  done
+
+  fail "model not found: $target"
+}
+
+set_model_in_env() {
+  local model="$1"
+  local env_file="$2"
+  local tmp
+
+  mkdir -p "$(dirname "$env_file")"
+  [[ -f "$env_file" ]] || touch "$env_file"
+  tmp="$(mktemp)"
+
+  awk -v model="$model" '
+    BEGIN { updated = 0 }
+    /^MODEL=/ {
+      if (updated == 0) {
+        print "MODEL=" model
+        updated = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (updated == 0) {
+        print "MODEL=" model
+      }
+    }
+  ' "$env_file" >"$tmp"
+
+  mv "$tmp" "$env_file"
+}
+
+case "$ACTION" in
+  list)
+    print_models
+    ;;
+  switch)
+    selected_model="$(resolve_target_model "$SWITCH_TARGET")"
+    set_model_in_env "$selected_model" "$ENV_FILE"
+    printf 'MODEL=%s\n' "$selected_model"
+    ;;
+esac
