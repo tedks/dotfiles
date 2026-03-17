@@ -7,6 +7,10 @@ suppress_unstable_features_warning = true
 personality = "pragmatic"
 notify = ["notify-send", "Codex"]
 
+[agents]
+max_threads = 32
+max_depth = 8
+
 [tui]
 status_line = ["model", "context-remaining", "git-branch"]
 
