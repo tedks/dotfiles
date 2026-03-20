@@ -97,6 +97,11 @@ Key packages: magit, flymake, ido/flx, ace-window, tuareg (OCaml), AUCTeX
 
 **`scripts/install/install-nix-hm`** - Bootstrap Nix and Home Manager from scratch
 
+**`scripts/deploy`** (also `.bin/deploy`) - Pull and install dotfiles on all machines:
+- Runs locally first, then SSHes to framework0 and tower0
+- `deploy --local` for local only
+- `deploy framework0` for a specific host
+
 **`.bin/hm-add`** - Home Manager helper (NixOS):
 - Adds packages to `~/.config/home-manager/home.nix`
 - Transactional: rolls back on failure
