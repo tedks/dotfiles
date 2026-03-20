@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# deploy - Pull latest dotfiles and run install on remote machines
+#
+# Usage:
+#   deploy                    # Deploy to all known hosts
+#   deploy framework0 tower0  # Deploy to specific hosts
+#   deploy --local            # Just run install locally
+#
+# What it does on each host:
+#   1. cd ~/Projects/dotfiles && git pull
+#   2. Run install-claude-config
+#   3. Run install-codex-config
+#   4. Run install-all (symlinks .bin/ scripts)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Default hosts (ssh via .local avahi)
+ALL_HOSTS=(framework0 tower0)
+
+INSTALL_CMDS=(
+    "bash scripts/install/install-all"
+)
+
+deploy_local() {
+    echo "=== Deploying locally ==="
+    cd "$ROOT"
+    git pull --rebase 2>&1 || true
+    for cmd in "${INSTALL_CMDS[@]}"; do
+        echo "  Running: $cmd"
+        bash -c "$cmd"
+    done
+    echo ""
+}
+
+deploy_remote() {
+    local host="$1"
+    echo "=== Deploying to $host ==="
+
+    if ! ssh -o ConnectTimeout=5 "$host.local" true 2>/dev/null; then
+        echo "  SKIP: $host not reachable"
+        echo ""
+        return 1
+    fi
+
+    ssh "$host.local" "cd ~/Projects/dotfiles && git pull --rebase 2>&1" || true
+
+    for cmd in "${INSTALL_CMDS[@]}"; do
+        echo "  Running: $cmd"
+        ssh "$host.local" "cd ~/Projects/dotfiles && $cmd"
+    done
+    echo ""
+}
+
+# Parse args
+hosts=()
+local_only=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --local) local_only=true ;;
+        --help|-h)
+            echo "Usage: deploy [--local] [host1 host2 ...]"
+            echo "  --local    Only run install locally"
+            echo "  host...    Deploy to specific hosts (default: ${ALL_HOSTS[*]})"
+            exit 0
+            ;;
+        *) hosts+=("$arg") ;;
+    esac
+done
+
+if [[ ${#hosts[@]} -eq 0 ]]; then
+    hosts=("${ALL_HOSTS[@]}")
+fi
+
+# Always deploy locally first
+deploy_local
+
+if ! $local_only; then
+    for host in "${hosts[@]}"; do
+        deploy_remote "$host"
+    done
+fi
+
+echo "=== Deploy complete ==="

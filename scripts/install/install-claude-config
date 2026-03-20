@@ -18,6 +18,7 @@ declare -A ITEMS=(
     ["CLAUDE.md"]="$ROOT/.claude/CLAUDE.md"
     ["settings.json"]="$ROOT/.claude/settings.json"
     ["skills"]="$ROOT/.claude/skills"
+    ["hooks"]="$ROOT/.claude/hooks"
 )
 
 backup_needed=false
