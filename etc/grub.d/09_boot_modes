@@ -11,7 +11,7 @@
 # along with "Advanced options" (recovery mode, older kernels).
 #
 # Source: dotfiles/etc/grub.d/09_boot_modes
-# Installed by: scripts/install/install-desktop-boot
+# Installed by: scripts/install/setup-framework-desktop
 # Claude session: 3735a547-8244-4da9-90fd-4bd8a0f6dd04
 set -e
 

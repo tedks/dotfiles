@@ -5,20 +5,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Parse args
 WITH_NIX=false
 WITH_GNOME_I3=false
-WITH_DESKTOP_BOOT=false
 for arg in "$@"; do
   case "$arg" in
     --with-nix) WITH_NIX=true ;;
     --with-gnome-i3) WITH_GNOME_I3=true ;;
-    --with-desktop-boot) WITH_DESKTOP_BOOT=true ;;
     --help|-h)
       echo "Usage: install-all [OPTIONS]"
       echo ""
       echo "Options:"
-      echo "  --with-gnome-i3      Install GNOME+i3 session files (requires sudo)"
-      echo "  --with-desktop-boot  Install desktop packages + GRUB boot menu (requires sudo)"
-      echo "  --with-nix           Install Nix and Home Manager (bootstrap from scratch)"
-      echo "  --help, -h           Show this help message"
+      echo "  --with-gnome-i3  Install GNOME+i3 session files (requires sudo)"
+      echo "  --with-nix       Install Nix and Home Manager (bootstrap from scratch)"
+      echo "  --help, -h       Show this help message"
       exit 0
       ;;
   esac
@@ -43,11 +40,6 @@ echo "Done. Make sure ~/.bin is in your PATH."
 
 # Install OpenCode configuration
 "$ROOT/scripts/install/install-opencode-config"
-
-# Install desktop packages + GRUB boot menu (if requested, requires sudo)
-if [ "$WITH_DESKTOP_BOOT" = true ]; then
-  "$ROOT/scripts/install/install-desktop-boot"
-fi
 
 # Install GNOME+i3 session files (if requested)
 if [ "$WITH_GNOME_I3" = true ]; then
