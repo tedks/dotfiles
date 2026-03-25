@@ -21,6 +21,7 @@ Claude session: 3735a547-8244-4da9-90fd-4bd8a0f6dd04
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -40,6 +41,12 @@ def _get_session_id() -> str | None:
     Checks (in order):
     1. CLAUDE_SESSION_ID env var (set by hooks, may be inherited)
     2. The 'current' pointer written by the session-state hook
+
+    Note: The 'current' pointer is a best-effort fallback. When multiple
+    Claude sessions run concurrently, each session's hook overwrites the
+    pointer, so it may return the wrong session ID. The env var is the
+    authoritative source; the pointer is only used when the env var is
+    unavailable (e.g. MCP servers that don't inherit it).
     """
     from_env = os.environ.get("CLAUDE_SESSION_ID")
     if from_env:
@@ -201,13 +208,14 @@ async def branch_session(
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return {"error": "tmux not available"}
 
+    # Validate session ID format (UUID) to reject anything unexpected
+    if not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", sid):
+        return {"error": f"Invalid session ID format: {sid}"}
+
     # Parse session:window from target
     parts = tmux_target.split(":", 1)
     tmux_session = parts[0]
     tmux_window = parts[1] if len(parts) > 1 else f"branch-{sid[:8]}"
-
-    # Build the claude command
-    claude_cmd = f"claude --resume {sid}"
 
     # Check if tmux session exists
     session_exists = subprocess.run(
@@ -215,12 +223,14 @@ async def branch_session(
         capture_output=True,
     ).returncode == 0
 
+    # Build tmux command — pass claude args as a list, not through bash -c,
+    # to avoid shell injection if sid were ever attacker-controlled.
     try:
         if session_exists:
             subprocess.run(
                 ["tmux", "new-window", "-t", tmux_session,
                  "-n", tmux_window, "-c", working_dir,
-                 "bash", "-c", claude_cmd],
+                 "claude", "--resume", sid],
                 capture_output=True, text=True, timeout=10,
                 check=True,
             )
@@ -228,7 +238,7 @@ async def branch_session(
             subprocess.run(
                 ["tmux", "new-session", "-d", "-s", tmux_session,
                  "-n", tmux_window, "-c", working_dir,
-                 "bash", "-c", claude_cmd],
+                 "claude", "--resume", sid],
                 capture_output=True, text=True, timeout=10,
                 check=True,
             )

@@ -43,8 +43,14 @@ cat > "$STATE_FILE" <<EOF
 EOF
 
 # Update current pointer (atomic via temp + rename)
+# NOTE: With concurrent sessions, each overwrites this pointer.
+# The MCP server treats it as a best-effort fallback; CLAUDE_SESSION_ID
+# env var is the authoritative source when available.
 tmp="$STATE_DIR/.current.$$"
 echo "$CLAUDE_SESSION_ID" > "$tmp"
 mv "$tmp" "$STATE_DIR/current"
+
+# Prune stale session state files older than 30 days
+find "$STATE_DIR" -name '*.json' -mtime +30 -delete 2>/dev/null
 
 exit 0
