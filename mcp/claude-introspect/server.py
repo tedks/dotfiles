@@ -35,26 +35,44 @@ SESSION_STATE_DIR = CLAUDE_DIR / "session-state"
 PROJECTS_DIR = CLAUDE_DIR / "projects"
 
 
+def _get_parent_pid(pid: int) -> int | None:
+    """Get the parent PID of a process by reading /proc/<pid>/stat."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        # Field 4 (0-indexed: 3) is PPID. The comm field (2) can contain
+        # spaces and parens, so find the last ')' to skip past it.
+        after_comm = stat[stat.rfind(")") + 2 :]
+        fields = after_comm.split()
+        return int(fields[1])  # PPID is the 2nd field after comm
+    except (FileNotFoundError, ValueError, IndexError):
+        return None
+
+
 def _get_session_id() -> str | None:
     """Get the current session ID.
 
     Checks (in order):
     1. CLAUDE_SESSION_ID env var (set by hooks, may be inherited)
-    2. The 'current' pointer written by the session-state hook
+    2. Per-process pointer files written by the session-state hook
 
-    Note: The 'current' pointer is a best-effort fallback. When multiple
-    Claude sessions run concurrently, each session's hook overwrites the
-    pointer, so it may return the wrong session ID. The env var is the
-    authoritative source; the pointer is only used when the env var is
-    unavailable (e.g. MCP servers that don't inherit it).
+    The hook writes current.<claude_pid> where claude_pid is the Claude
+    Code process that spawned the hook ($PPID in the hook). This MCP
+    server walks up its own process tree (python -> uv -> Claude Code)
+    to find the matching pointer, so concurrent sessions each resolve
+    to their own session ID without racing.
     """
     from_env = os.environ.get("CLAUDE_SESSION_ID")
     if from_env:
         return from_env
 
-    current_file = SESSION_STATE_DIR / "current"
-    if current_file.exists():
-        return current_file.read_text().strip()
+    # Walk up the process tree looking for a current.<pid> pointer
+    # written by the hook running under our ancestor Claude Code process.
+    pid = os.getpid()
+    while pid is not None and pid > 1:
+        pointer = SESSION_STATE_DIR / f"current.{pid}"
+        if pointer.exists():
+            return pointer.read_text().strip()
+        pid = _get_parent_pid(pid)
 
     return None
 

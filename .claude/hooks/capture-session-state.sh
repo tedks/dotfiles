@@ -42,15 +42,17 @@ cat > "$STATE_FILE" <<EOF
 }
 EOF
 
-# Update current pointer (atomic via temp + rename)
-# NOTE: With concurrent sessions, each overwrites this pointer.
-# The MCP server treats it as a best-effort fallback; CLAUDE_SESSION_ID
-# env var is the authoritative source when available.
+# Write per-process pointer keyed by Claude Code's PID.
+# The hook's PPID is Claude Code (the process that spawned this hook).
+# The MCP server walks up its own process tree to find the matching
+# current.<pid> file, so concurrent sessions each resolve to their
+# own pointer without racing.
 tmp="$STATE_DIR/.current.$$"
 echo "$CLAUDE_SESSION_ID" > "$tmp"
-mv "$tmp" "$STATE_DIR/current"
+mv "$tmp" "$STATE_DIR/current.$PPID"
 
-# Prune stale session state files older than 30 days
+# Prune stale files
 find "$STATE_DIR" -name '*.json' -mtime +30 -delete 2>/dev/null
+find "$STATE_DIR" -name 'current.*' -mtime +1 -delete 2>/dev/null
 
 exit 0
