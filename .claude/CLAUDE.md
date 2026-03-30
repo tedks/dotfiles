@@ -201,6 +201,20 @@ Includes helper scripts in the skill's `scripts/` directory:
 
 If `claude-send.sh` isn't working, tell me rather than falling back to manual methods.
 
+## council-review
+
+Multi-agent code review council. Gets parallel reviews from Claude, Codex, and Gemini, then synthesizes the results.
+
+```bash
+/council-review              # review uncommitted changes
+/council-review staged       # review staged changes
+/council-review branch       # review current branch vs main
+/council-review PR #42       # review a pull request
+/council-review src/auth.py  # review a specific file
+```
+
+The native agent runs a subagent review; the other two are queried via `/ask-agent`. All three run in parallel. Results are presented as a unified council summary highlighting consensus issues.
+
 ## stacked-prs
 
 Detailed workflow guidance for managing stacked PRs. Triggers when discussing PR stacks, rebasing stacks, or merging stacked PRs.
