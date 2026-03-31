@@ -8,9 +8,7 @@
 #
 # What it does on each host:
 #   1. cd ~/Projects/dotfiles && git pull
-#   2. Run install-claude-config
-#   3. Run install-codex-config
-#   4. Run install-all (symlinks .bin/ scripts)
+#   2. Run install-all (symlinks scripts, claude config, codex config)
 
 set -euo pipefail
 
@@ -27,7 +25,9 @@ INSTALL_CMDS=(
 deploy_local() {
     echo "=== Deploying locally ==="
     cd "$ROOT"
-    git pull --rebase 2>&1 || true
+    if ! git pull --rebase 2>&1; then
+        echo "  WARNING: git pull failed, running install on current state" >&2
+    fi
     for cmd in "${INSTALL_CMDS[@]}"; do
         echo "  Running: $cmd"
         bash -c "$cmd"
@@ -42,10 +42,12 @@ deploy_remote() {
     if ! ssh -o ConnectTimeout=5 "$host.local" true 2>/dev/null; then
         echo "  SKIP: $host not reachable"
         echo ""
-        return 1
+        return 0
     fi
 
-    ssh "$host.local" "cd ~/Projects/dotfiles && git pull --rebase 2>&1" || true
+    if ! ssh "$host.local" "cd ~/Projects/dotfiles && git pull --rebase 2>&1"; then
+        echo "  WARNING: git pull failed on $host, running install on current state" >&2
+    fi
 
     for cmd in "${INSTALL_CMDS[@]}"; do
         echo "  Running: $cmd"
