@@ -5,6 +5,10 @@ argument-hint: <session:window> <agent> [directory] [prompt]
 allowed-tools: Bash(~/.claude/skills/spawn-agent/scripts/*)
 ---
 
+<!-- Note: allowed-tools and script paths point to ~/.claude/skills/ because
+     .codex/skills/*/scripts are symlinks to .claude/skills/*/scripts.
+     This requires the .claude directory to be installed. -->
+
 # spawn-agent
 
 Spawn AI agents in tmux windows for interactive, parallel work. Use this for
@@ -53,6 +57,7 @@ PROMPT_DELIM
 # 2. Spawn with --prompt-file
 ~/.claude/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] --prompt-file "$prompt_file"
 # Note: the script cleans up its own temp files; caller-provided files are preserved
+rm -f "$prompt_file"
 ```
 
 For short prompts, inline is also fine:

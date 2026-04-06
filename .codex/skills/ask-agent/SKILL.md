@@ -5,6 +5,10 @@ argument-hint: <agent> [options] <prompt>
 allowed-tools: Bash(~/.claude/skills/ask-agent/scripts/*)
 ---
 
+<!-- Note: allowed-tools and script paths point to ~/.claude/skills/ because
+     .codex/skills/*/scripts are symlinks to .claude/skills/*/scripts.
+     This requires the .claude directory to be installed. -->
+
 # ask-agent
 
 Query another AI agent non-interactively and get the response back. Use this
