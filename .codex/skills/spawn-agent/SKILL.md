@@ -2,8 +2,12 @@
 name: spawn-agent
 description: Spawn AI agents in tmux windows for parallel/interactive work
 argument-hint: <session:window> <agent> [directory] [prompt]
-allowed-tools: Bash(~/.codex/skills/spawn-agent/scripts/*)
+allowed-tools: Bash(~/.claude/skills/spawn-agent/scripts/*)
 ---
+
+<!-- Note: allowed-tools and script paths point to ~/.claude/skills/ because
+     .codex/skills/*/scripts are symlinks to .claude/skills/*/scripts.
+     This requires the .claude directory to be installed. -->
 
 # spawn-agent
 
@@ -36,18 +40,33 @@ If not in tmux, report error and stop:
 
 ### 2. Check tmux context
 
-Run `~/.codex/skills/spawn-agent/scripts/tmux-info.sh` to see the current
+Run `~/.claude/skills/spawn-agent/scripts/tmux-info.sh` to see the current
 socket, sessions, and windows. This ensures you're targeting the right server.
 
 ### 3. Spawn the agent
 
-Run the agent-spawn.sh script:
+**Always pass the prompt via a temp file** to avoid ARG_MAX errors:
 
 ```bash
-~/.codex/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] [prompt]
+# 1. Write prompt to a temp file
+prompt_file=$(mktemp /tmp/spawn-agent-prompt.XXXXXX)
+cat << 'PROMPT_DELIM' > "$prompt_file"
+<your prompt here>
+PROMPT_DELIM
+
+# 2. Spawn with --prompt-file
+~/.claude/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] --prompt-file "$prompt_file"
+# Note: the script cleans up its own temp files; caller-provided files are preserved
+rm -f "$prompt_file"
 ```
 
-The script automatically detects the tmux socket from `$TMUX` — no manual
+For short prompts, inline is also fine:
+
+```bash
+~/.claude/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] [prompt]
+```
+
+The script automatically detects the tmux socket from `$TMUX` -- no manual
 `-L` or `-S` flags needed.
 
 ### 4. Report success
@@ -70,15 +89,15 @@ If you're in `tmux -L personal`, spawned agents will be in the same server.
 **Override manually** (rarely needed):
 ```bash
 # By socket path
-SPAWN_TMUX_SOCKET=/tmp/tmux-1000/personal ~/.codex/skills/spawn-agent/scripts/agent-spawn.sh ...
+SPAWN_TMUX_SOCKET=/tmp/tmux-1000/personal ~/.claude/skills/spawn-agent/scripts/agent-spawn.sh ...
 
 # By -L label
-SPAWN_TMUX_LABEL=personal ~/.codex/skills/spawn-agent/scripts/agent-spawn.sh ...
+SPAWN_TMUX_LABEL=personal ~/.claude/skills/spawn-agent/scripts/agent-spawn.sh ...
 ```
 
 **Quick diagnostic:**
 ```bash
-~/.codex/skills/spawn-agent/scripts/tmux-info.sh
+~/.claude/skills/spawn-agent/scripts/tmux-info.sh
 ```
 This prints the current socket, server PID, all sessions, and all windows.
 
@@ -104,40 +123,42 @@ All scripts source `tmux-ctx.sh` for automatic socket detection.
 
 ### tmux-info.sh
 
-Show current tmux context — socket, sessions, windows:
+Show current tmux context -- socket, sessions, windows:
 ```bash
-~/.codex/skills/spawn-agent/scripts/tmux-info.sh
+~/.claude/skills/spawn-agent/scripts/tmux-info.sh
 ```
 
 ### agent-spawn.sh
 
 Spawn any supported agent:
 ```bash
-~/.codex/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] [prompt]
+~/.claude/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] [prompt]
+~/.claude/skills/spawn-agent/scripts/agent-spawn.sh <session:window> <agent> [directory] --prompt-file <file>
 ```
 
 ### claude-spawn.sh
 
 Claude-specific spawner with additional options:
 ```bash
-~/.codex/skills/spawn-agent/scripts/claude-spawn.sh <session:window-name> [directory] [claude-args...]
+~/.claude/skills/spawn-agent/scripts/claude-spawn.sh <session:window-name> [directory] [claude-args...]
 
 # Examples:
-~/.codex/skills/spawn-agent/scripts/claude-spawn.sh chaos:review . --resume abc123  # Resume session
+~/.claude/skills/spawn-agent/scripts/claude-spawn.sh chaos:review . --resume abc123  # Resume session
 ```
 
 ### claude-send.sh
 
 Send a message to a running Claude instance:
 ```bash
-~/.codex/skills/spawn-agent/scripts/claude-send.sh <window> <message>
+~/.claude/skills/spawn-agent/scripts/claude-send.sh <window> <message>
+~/.claude/skills/spawn-agent/scripts/claude-send.sh <window> --prompt-file <file>
 
 # Example:
-~/.codex/skills/spawn-agent/scripts/claude-send.sh chaos:review "run the tests"
+~/.claude/skills/spawn-agent/scripts/claude-send.sh chaos:review "run the tests"
 ```
 
-Handles the timing issue where Enter gets swallowed if sent too quickly
-(uses 1.5 second delay between text and Enter).
+Uses tmux load-buffer/paste-buffer for the message body (avoids ARG_MAX),
+then sends Enter with a 1.5 second delay to avoid the swallowed-Enter issue.
 
 ## Detecting Idle State
 
@@ -168,4 +189,5 @@ of waiting for user input. To detect when agents are ready:
 - Agents run interactively in tmux windows
 - Use `tmux-info.sh` to see all sessions and windows on the current server
 - Use claude-send.sh to send messages to running agents
-- Socket detection is automatic — you don't need to think about `-L` or `-S`
+- Socket detection is automatic -- you don't need to think about `-L` or `-S`
+- Prompts are passed via temp files to avoid ARG_MAX limits

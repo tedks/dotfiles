@@ -11,6 +11,9 @@
 #   -m, --model <model>          Specify model (agent-specific)
 #   -f, --prompt-file <file>     Read prompt from file (avoids ARG_MAX)
 #
+# The prompt is always piped via stdin to the downstream agent, never
+# passed as a CLI argument. This avoids ARG_MAX limits on execve(2).
+#
 # Examples:
 #   agent-query.sh claude "Explain this error"
 #   agent-query.sh codex -d ./project "Review the auth module"
@@ -66,40 +69,64 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Get prompt from file or positional args
-if [[ -n "$prompt_file" ]]; then
+# Normalize: ensure we always have a prompt_file to pipe from.
+# This avoids passing the prompt as a CLI argument to the downstream
+# agent, which would hit ARG_MAX for large prompts.
+_cleanup_prompt_file=""
+
+# Trap to clean up temp files on any exit (failure paths).
+# On the success path, we manually delete before exec.
+cleanup() {
+    [[ -n "$_cleanup_prompt_file" ]] && rm -f "$_cleanup_prompt_file"
+}
+trap cleanup EXIT
+
+if [[ -z "$prompt_file" ]]; then
+    prompt="$*"
+    if [[ -z "$prompt" ]]; then
+        echo "Error: prompt required (positional arg or --prompt-file)" >&2
+        usage
+    fi
+    prompt_file=$(mktemp /tmp/agent-query-prompt.XXXXXX)
+    _cleanup_prompt_file="$prompt_file"
+    printf '%s' "$prompt" > "$prompt_file"
+else
     if [[ ! -f "$prompt_file" ]]; then
         echo "Error: prompt file not found: $prompt_file" >&2
         exit 1
     fi
-    prompt="$(cat "$prompt_file")"
-else
-    prompt="$*"
+    if [[ ! -s "$prompt_file" ]]; then
+        echo "Error: prompt file is empty: $prompt_file" >&2
+        exit 1
+    fi
 fi
 
-if [[ -z "$prompt" ]]; then
-    echo "Error: prompt required (positional arg or --prompt-file)" >&2
-    usage
-fi
+# Canonicalize prompt_file to an absolute path so that a subsequent
+# cd (via --dir) doesn't break a relative path.
+prompt_file="$(cd -- "$(dirname -- "$prompt_file")" && pwd)/$(basename -- "$prompt_file")"
 
-# Change directory if specified
+# Change directory if specified (must happen after canonicalization)
 if [[ -n "$dir" ]]; then
     cd "$dir"
 fi
 
+# Build command array — the prompt is NOT included in argv.
+# It will be piped via stdin to avoid ARG_MAX limits.
+# All three agents (claude, codex, gemini) read from stdin when
+# no positional prompt argument is given — verified empirically.
 case "$agent" in
     claude)
         cmd=(claude -p)
         [[ -n "$model" ]] && cmd+=(--model "$model")
-        cmd+=("$prompt")
         ;;
     codex)
-        cmd=(codex exec)
+        cmd=(codex exec -)
         [[ -n "$model" ]] && cmd+=(-m "$model")
-        cmd+=("$prompt")
         ;;
     gemini)
-        cmd=(gemini -p "$prompt" -o text)
+        # gemini requires -p for headless mode; with -p "" it reads
+        # the actual prompt from stdin ("Appended to input on stdin").
+        cmd=(gemini -p "" -o text)
         [[ -n "$model" ]] && cmd+=(-m "$model")
         ;;
     *)
@@ -109,4 +136,10 @@ case "$agent" in
         ;;
 esac
 
-exec "${cmd[@]}"
+# Pipe prompt via stdin — this is the key ARG_MAX fix.
+# We open the file descriptor, delete the temp file (if we created it),
+# then exec. The fd survives exec; the unlinked file stays readable
+# through the open fd until the process exits.
+exec 3< "$prompt_file"
+[[ -n "$_cleanup_prompt_file" ]] && rm -f "$_cleanup_prompt_file"
+exec "${cmd[@]}" <&3
