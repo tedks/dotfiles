@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Play a random video file from the current directory using the default player.
+
+dir="$NAUTILUS_SCRIPT_CURRENT_URI"
+# NAUTILUS_SCRIPT_CURRENT_URI is file:///path/to/dir - strip the prefix
+dir="${dir#file://}"
+# URL-decode (spaces as %20, etc.)
+dir="$(printf '%b' "${dir//%/\\x}")"
+
+# If dir is empty, fall back to pwd
+[ -z "$dir" ] && dir="$(pwd)"
+
+# Common video extensions
+shopt -s nullglob nocaseglob
+videos=("$dir"/*.{mp4,mkv,avi,webm,mov,flv,wmv,m4v,mpg,mpeg,ts,ogv})
+shopt -u nullglob nocaseglob
+
+if [ ${#videos[@]} -eq 0 ]; then
+  notify-send "Play Random Video" "No video files found in this folder."
+  exit 0
+fi
+
+# Pick a random video and open with default player
+random_video="${videos[RANDOM % ${#videos[@]}]}"
+xdg-open "$random_video"

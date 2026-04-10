@@ -32,6 +32,16 @@ for script in "$ROOT/.bin/"*; do
 done
 echo "Done. Make sure ~/.bin is in your PATH."
 
+# Install Nautilus scripts
+echo "=== Installing Nautilus scripts ==="
+mkdir -p "$HOME/.local/share/nautilus/scripts"
+for script in "$ROOT/.local/share/nautilus/scripts/"*; do
+  [ -f "$script" ] || continue
+  name="$(basename "$script")"
+  ln -sf "$script" "$HOME/.local/share/nautilus/scripts/$name"
+  echo "  Linked $name"
+done
+
 # Install Claude Code configuration
 "$ROOT/scripts/install/install-claude-config"
 
