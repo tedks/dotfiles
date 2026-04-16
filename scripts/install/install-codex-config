@@ -29,7 +29,25 @@ declare -A ITEMS=(
     ["rules"]="$ROOT/.codex/rules"
 )
 
-SKILLS_DIR="$ROOT/.codex/skills"
+SHARED_SKILLS_DIR="$ROOT/.claude/skills"
+CODEX_SKILLS_DIR="$ROOT/.codex/skills"
+declare -A SKILL_SOURCES=()
+
+collect_skills() {
+    local source_dir="$1"
+    [[ -d "$source_dir" ]] || return
+
+    for skill in "$source_dir"/*; do
+        [[ -d "$skill" ]] || continue
+        SKILL_SOURCES["$(basename "$skill")"]="$skill"
+    done
+}
+
+# Treat Claude skills as shared defaults for Codex, then let Codex-specific
+# skills override by name. Hidden entries such as ~/.codex/skills/.system stay
+# machine-local because we continue linking named skills individually.
+collect_skills "$SHARED_SKILLS_DIR"
+collect_skills "$CODEX_SKILLS_DIR"
 
 backup_needed=false
 
@@ -47,19 +65,16 @@ for name in "${!ITEMS[@]}"; do
 done
 
 # Check if backup is needed for skills
-if [[ -d "$SKILLS_DIR" ]]; then
-    for skill in "$SKILLS_DIR"/*; do
-        [[ -d "$skill" ]] || continue
-        name="$(basename "$skill")"
-        target="$CODEX_DIR/skills/$name"
-        if [[ -e "$target" || -L "$target" ]]; then
-            if ! is_correct_link "$target" "$skill"; then
-                backup_needed=true
-                break
-            fi
+for name in "${!SKILL_SOURCES[@]}"; do
+    skill="${SKILL_SOURCES[$name]}"
+    target="$CODEX_DIR/skills/$name"
+    if [[ -e "$target" || -L "$target" ]]; then
+        if ! is_correct_link "$target" "$skill"; then
+            backup_needed=true
+            break
         fi
-    done
-fi
+    fi
+done
 
 # Create backup directory and move existing files
 if $backup_needed; then
@@ -79,21 +94,18 @@ if $backup_needed; then
         fi
     done
 
-    if [[ -d "$SKILLS_DIR" ]]; then
-        for skill in "$SKILLS_DIR"/*; do
-            [[ -d "$skill" ]] || continue
-            name="$(basename "$skill")"
-            target="$CODEX_DIR/skills/$name"
-            if [[ -e "$target" || -L "$target" ]]; then
-                if is_correct_link "$target" "$skill"; then
-                    echo "  skills/$name: already symlinked correctly, skipping backup"
-                    continue
-                fi
-                mv "$target" "$BACKUP_DIR/"
-                echo "  Backed up: skills/$name"
+    for name in "${!SKILL_SOURCES[@]}"; do
+        skill="${SKILL_SOURCES[$name]}"
+        target="$CODEX_DIR/skills/$name"
+        if [[ -e "$target" || -L "$target" ]]; then
+            if is_correct_link "$target" "$skill"; then
+                echo "  skills/$name: already symlinked correctly, skipping backup"
+                continue
             fi
-        done
-    fi
+            mv "$target" "$BACKUP_DIR/"
+            echo "  Backed up: skills/$name"
+        fi
+    done
 fi
 
 # Create symlinks for core items
@@ -121,11 +133,10 @@ for name in "${!ITEMS[@]}"; do
 done
 
 # Create symlinks for skills (per-skill to preserve ~/.codex/skills/.system)
-if [[ -d "$SKILLS_DIR" ]]; then
+if [[ ${#SKILL_SOURCES[@]} -gt 0 ]]; then
     mkdir -p "$CODEX_DIR/skills"
-    for skill in "$SKILLS_DIR"/*; do
-        [[ -d "$skill" ]] || continue
-        name="$(basename "$skill")"
+    for name in "${!SKILL_SOURCES[@]}"; do
+        skill="${SKILL_SOURCES[$name]}"
         target="$CODEX_DIR/skills/$name"
 
         if is_correct_link "$target" "$skill"; then
