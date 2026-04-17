@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# npm-ai-update: update AI npm package versions in npm-packages.nix and rebuild.
+# Checks npm registry for latest versions, updates pins, runs home-manager switch,
+# and commits the result.
+#
+# Designed to run unattended (e.g., from cron).
+
+set -euo pipefail
+
+HM_DIR="${HM_DIR:-$HOME/.config/home-manager}"
+NPM_PACKAGES_NIX="$HM_DIR/npm-packages.nix"
+LOG_TAG="npm-ai-update"
+
+log() { echo "[$LOG_TAG] $*"; }
+err() { echo "[$LOG_TAG] ERROR: $*" >&2; }
+
+if [[ ! -f "$NPM_PACKAGES_NIX" ]]; then
+  err "$NPM_PACKAGES_NIX not found"
+  exit 1
+fi
+
+# Packages to update — must match the attribute names in npm-packages.nix
+PACKAGES=(
+  "@anthropic-ai/claude-code"
+  "@openai/codex"
+  "@google/gemini-cli"
+  "opencode-ai"
+)
+
+updated=0
+
+for pkg in "${PACKAGES[@]}"; do
+  # Get current pinned version from nix file
+  current=$(grep "\"$pkg\"" "$NPM_PACKAGES_NIX" | sed -E 's/.*= "([^"]+)".*/\1/')
+  if [[ -z "$current" ]]; then
+    err "Could not find pinned version for $pkg in $NPM_PACKAGES_NIX"
+    continue
+  fi
+
+  # Get latest version from npm registry
+  latest=$(npm view "$pkg" version 2>/dev/null || true)
+  if [[ -z "$latest" ]]; then
+    err "Could not fetch latest version for $pkg"
+    continue
+  fi
+
+  if [[ "$current" == "$latest" ]]; then
+    log "$pkg: $current (up to date)"
+  else
+    log "$pkg: $current -> $latest"
+    # Replace the version string in-place, matching the exact line
+    sed -i "s|\"$pkg\" = \"$current\"|\"$pkg\" = \"$latest\"|" "$NPM_PACKAGES_NIX"
+    updated=$((updated + 1))
+  fi
+done
+
+if [[ $updated -eq 0 ]]; then
+  log "All packages up to date, nothing to do."
+  exit 0
+fi
+
+log "Updated $updated package(s), running home-manager switch..."
+cd "$HM_DIR"
+
+# Rebuild with home-manager
+if home-manager switch --flake . 2>&1; then
+  log "home-manager switch succeeded"
+else
+  err "home-manager switch failed; reverting npm-packages.nix"
+  git -C "$HM_DIR" checkout -- "$NPM_PACKAGES_NIX"
+  exit 1
+fi
+
+# Commit the change
+if ! git -C "$HM_DIR" diff --quiet "$NPM_PACKAGES_NIX" 2>/dev/null; then
+  git -C "$HM_DIR" add "$NPM_PACKAGES_NIX"
+  git -C "$HM_DIR" commit -m "npm-packages.nix: update AI packages ($(date +%F))"
+  log "Committed version updates"
+else
+  log "No uncommitted changes (already committed?)"
+fi
+
+log "Done."
