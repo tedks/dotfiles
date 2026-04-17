@@ -1,141 +1,395 @@
-#!/usr/bin/env bash
-# hm-add: declaratively add packages to Home Manager and commit only on success.
-# - Adds packages into the *home.packages* list in ~/.config/home-manager/home.nix
-# - Builds/switches; commits changes only if the build succeeds
-# - Supports: multiple packages, --search, --help
+#!/usr/bin/env python3
+"""hm-add: declaratively add packages to Home Manager and commit on success.
 
-set -euo pipefail
-
-HM_DIR="${HM_DIR:-$HOME/.config/home-manager}"
-HOME_NIX="$HM_DIR/home.nix"
-FLAKE_PATH="$HM_DIR"
-
-print_help() {
-  cat <<'EOF'
 Usage:
-  hm-add <pkg> [<pkg> ...]      Add one or more packages to home.packages and switch
-  hm-add --search <term>        Search nixpkgs for packages
-  hm-add --help | -h            Show this help
+  hm-add <pkg> [<pkg> ...]                     Add nixpkgs packages
+  hm-add --flake <url>#<attr> [--as <name>]     Add a package from a flake input
+  hm-add --search <term>                        Search nixpkgs
+  hm-add --help                                 Show this help
+
+Examples:
+  hm-add ripgrep fd bat
+  hm-add --flake github:aaddrick/claude-desktop-debian#claude-desktop-fhs
+  hm-add --flake github:owner/repo              (uses 'default' output)
+  hm-add --flake github:owner/repo#pkg --as my-tool
+  hm-add --search font
 
 Notes:
-  * This edits ~/.config/home-manager/home.nix.
-  * Commit to Git happens only if the Home Manager switch succeeds.
-  * If you add unfree packages like vscode/cursor, enable unfree in your config:
+  * Edits ~/.config/home-manager/{home.nix,flake.nix}
+  * Commits only if home-manager switch succeeds; reverts on failure
+  * For unfree packages, enable in your config:
       nixpkgs.config.allowUnfree = true;
-EOF
-}
+"""
 
-# ---------- parse args ----------
-if [[ $# -eq 0 || "${1:-}" =~ ^(--help|-h)$ ]]; then
-  print_help
-  exit 0
-fi
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
-# search subcommand
-if [[ "${1:-}" == "--search" || "${1:-}" == "-s" || "${1:-}" == "search" ]]; then
-  shift
-  (( $# > 0 )) || { echo "❌ Provide a search term."; exit 1; }
-  printf '🔍 nix search nixpkgs %s\n' "$*"
-  nix search nixpkgs "$@"
-  exit 0
-fi
 
-# Remaining args are package names
-PKGS=("$@")
+HM_DIR = Path(os.environ.get("HM_DIR", Path.home() / ".config" / "home-manager"))
+HOME_NIX = HM_DIR / "home.nix"
+FLAKE_NIX = HM_DIR / "flake.nix"
+FLAKE_LOCK = HM_DIR / "flake.lock"
 
-# ---------- sanity checks ----------
-[[ -f "$HOME_NIX" ]] || { echo "❌ $HOME_NIX not found"; exit 1; }
-if ! git -C "$HM_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "❌ $HM_DIR is not a Git repo. Run:  (cd $HM_DIR && git init && git add . && git commit -m 'init')"
-  exit 1
-fi
 
-# Locate the home.packages list; detect whether it's 'with pkgs;'
-if grep -Eq 'home\.packages[[:space:]]*=[[:space:]]*with[[:space:]]+pkgs;[[:space:]]*\[' "$HOME_NIX"; then
-  INSERT_ANCHOR_REGEX='home\.packages[[:space:]]*=[[:space:]]*with[[:space:]]+pkgs;[[:space:]]*\['
-  WITH_PKGS=1
-elif grep -Eq 'home\.packages[[:space:]]*=\s*\[' "$HOME_NIX"; then
-  INSERT_ANCHOR_REGEX='home\.packages[[:space:]]*=\s*\['
-  WITH_PKGS=0
-else
-  echo "❌ Could not find 'home.packages = ... [ ... ]' block in $HOME_NIX"
-  exit 1
-fi
+def die(msg):
+    print(f"\u274c {msg}", file=sys.stderr)
+    sys.exit(1)
 
-# Extract ONLY the home.packages list block for accurate presence checks
-extract_home_packages_block() {
-  awk '
-    $0 ~ /home[.]packages[[:space:]]*=/ {inlist=1}
-    inlist {print}
-    inlist && /\]/ {exit}
-  ' "$HOME_NIX"
-}
 
-pkg_in_home_packages() {
-  local p="$1"
-  # Match either `p` (when using `with pkgs;`) or `pkgs.p` (when not)
-  local block
-  block="$(extract_home_packages_block)"
-  if [[ $WITH_PKGS -eq 1 ]]; then
-    grep -Eq "^[[:space:]]*${p}([[:space:]#]|$)" <<<"$block"
-  else
-    grep -Eq "^[[:space:]]*(pkgs\.)?${p}([[:space:]#]|$)" <<<"$block"
-  fi
-}
+# ── Transactional file editing ───────────────────────────────────────
 
-add_pkg_line() {
-  local p="$1" to_add
-  if [[ $WITH_PKGS -eq 1 ]]; then
-    to_add="$p"
-  else
-    to_add="pkgs.$p"
-  fi
-  # Insert right after the '[' line of the home.packages block
-  sed -Ei "/$INSERT_ANCHOR_REGEX/a\  ${to_add}" "$HOME_NIX"
-  echo "➕ Added '$p' to home.nix"
-}
 
-# ---------- transactional edit ----------
-TMP_BAK="$(mktemp -t hm-add.home.nix.XXXXXX)"
-cp -f "$HOME_NIX" "$TMP_BAK"
+class TransactionalEdit:
+    """Back up files on entry, restore all on any exception."""
 
-cleanup() {
-  local code=$?
-  if [[ $code -ne 0 ]]; then
-    echo "↩️  Reverting $HOME_NIX due to failure…"
-    cp -f "$TMP_BAK" "$HOME_NIX"
-  fi
-  rm -f "$TMP_BAK"
-  exit $code
-}
-trap cleanup EXIT INT TERM
+    def __init__(self, *paths):
+        self.paths = [Path(p) for p in paths if Path(p).exists()]
+        self.backups = {}
 
-# Add each requested package if not already present in the list
-for p in "${PKGS[@]}"; do
-  if pkg_in_home_packages "$p"; then
-    echo "✅ '$p' already present in home.packages"
-  else
-    add_pkg_line "$p"
-  fi
-done
+    def __enter__(self):
+        for p in self.paths:
+            self.backups[p] = p.read_text()
+        return self
 
-# Optional: format (ignore errors if formatter missing)
-if command -v nixpkgs-fmt >/dev/null 2>&1; then
-  nixpkgs-fmt "$HOME_NIX" || true
-fi
+    def __exit__(self, exc_type, _exc_val, _exc_tb):
+        if exc_type is not None:
+            print("\u21a9\ufe0f  Reverting changes due to failure\u2026", file=sys.stderr)
+            for p, content in self.backups.items():
+                p.write_text(content)
+        return False
 
-# ---------- build & switch ----------
-echo "🔄 Building & switching (this may warn about a dirty Git tree until we commit)…"
-nix run github:nix-community/home-manager -- --flake "$FLAKE_PATH" switch
 
-# ---------- commit only if switch succeeded ----------
-# Stage only changed files in the HM dir; commit if there are any
-if ! git -C "$HM_DIR" diff --quiet; then
-  git -C "$HM_DIR" add -A
-  git -C "$HM_DIR" commit -m "hm-add: add ${PKGS[*]}"
-  echo "✅ Committed changes: ${PKGS[*]}"
-else
-  echo "ℹ️ No changes to commit."
-fi
+# ── Nixpkgs helpers ──────────────────────────────────────────────────
 
-echo "✅ Done."
+
+def detect_with_pkgs(content):
+    """True if home.packages uses 'with pkgs; [' style."""
+    if re.search(r"home\.packages\s*=\s*with\s+pkgs;\s*\[", content):
+        return True
+    if re.search(r"home\.packages\s*=\s*\[", content):
+        return False
+    die("Could not find 'home.packages = ... [' in home.nix")
+
+
+def extract_packages_block(content):
+    """Extract the home.packages list for presence checks."""
+    lines = []
+    collecting = False
+    depth = 0
+    for line in content.splitlines():
+        if re.search(r"home\.packages\s*=", line):
+            collecting = True
+        if collecting:
+            depth += line.count("[") - line.count("]")
+            lines.append(line)
+            if depth <= 0:
+                break
+    return "\n".join(lines)
+
+
+def pkg_already_present(content, pkg, with_pkgs):
+    block = extract_packages_block(content)
+    esc = re.escape(pkg)
+    if with_pkgs:
+        return bool(re.search(rf"^\s*{esc}(\s|#|$)", block, re.MULTILINE))
+    return bool(re.search(rf"^\s*(pkgs\.)?{esc}(\s|#|$)", block, re.MULTILINE))
+
+
+def insert_into_packages(content, entry):
+    """Insert an entry right after the 'home.packages = ... [' line."""
+    anchor = r"home\.packages\s*=\s*(with\s+pkgs;\s*)?\["
+    lines = content.splitlines(keepends=True)
+    out = []
+    done = False
+    for line in lines:
+        out.append(line)
+        if not done and re.search(anchor, line):
+            out.append(f"  {entry}\n")
+            done = True
+    if not done:
+        die("Failed to locate home.packages insertion point")
+    return "".join(out)
+
+
+# ── Flake-input helpers ──────────────────────────────────────────────
+
+
+def parse_flake_ref(ref):
+    """'github:owner/repo#attr' -> (url, attr). No '#' -> attr='default'."""
+    if "#" in ref:
+        url, attr = ref.rsplit("#", 1)
+    else:
+        url, attr = ref, "default"
+    return url, attr
+
+
+def derive_input_name(url):
+    """github:owner/repo-name -> 'repo-name'."""
+    return url.rsplit("/", 1)[-1].split("/")[0]
+
+
+def flake_input_exists(content, name):
+    return bool(
+        re.search(rf"^\s*{re.escape(name)}\s*[.={{]", content, re.MULTILINE)
+    )
+
+
+def add_flake_input(content, name, url):
+    """Insert a new input into 'inputs = { ... };'."""
+    lines = content.splitlines(keepends=True)
+    out = []
+    in_inputs = False
+    depth = 0
+    done = False
+    for line in lines:
+        if not in_inputs and re.search(r"inputs\s*=\s*\{", line):
+            in_inputs = True
+            depth = line.count("{") - line.count("}")
+            out.append(line)
+            continue
+        if in_inputs and not done:
+            depth += line.count("{") - line.count("}")
+            if depth <= 0:
+                # Insert before closing '};'
+                out.append(f"    {name} = {{\n")
+                out.append(f'      url = "{url}";\n')
+                out.append(f"    }};\n")
+                done = True
+        out.append(line)
+    if not done:
+        die("Could not locate inputs block in flake.nix")
+    return "".join(out)
+
+
+def add_outputs_arg(content, name):
+    """Add name before '...' in the outputs function signature."""
+    m = re.search(r"(outputs\s*=\s*\{[^}]*?)(,?\s*\.\.\.)", content)
+    if not m:
+        die("Could not locate outputs function args in flake.nix")
+    return content[: m.end(1)] + f", {name}" + content[m.start(2) :]
+
+
+def add_extra_special_arg(content, name):
+    """Append name to 'inherit ...;' inside extraSpecialArgs."""
+    esa = re.search(r"extraSpecialArgs\s*=\s*\{", content)
+    if not esa:
+        die("Could not locate extraSpecialArgs in flake.nix")
+    region = content[esa.start() :]
+    inh = re.search(r"(inherit\s+[^;]*?)(;)", region)
+    if inh:
+        pos = esa.start()
+        return (
+            content[: pos + inh.end(1)]
+            + f" {name}"
+            + content[pos + inh.start(2) :]
+        )
+    # No inherit — add a direct assignment after the opening '{'
+    return (
+        content[: esa.end()]
+        + f"\n          {name} = {name};"
+        + content[esa.end() :]
+    )
+
+
+def add_home_nix_arg(content, name):
+    """Add name to home.nix's function arguments."""
+    m = re.search(r"(\{[^}]*?)(,?\s*\.\.\.)", content)
+    if not m:
+        die("Could not locate function arguments in home.nix")
+    return content[: m.end(1)] + f", {name}" + content[m.start(2) :]
+
+
+def home_nix_has_arg(content, name):
+    m = re.search(r"\{([^}]*)\.\.\.", content)
+    if not m:
+        return False
+    esc = re.escape(name)
+    return bool(
+        re.search(rf"(?<![a-zA-Z0-9_-]){esc}(?![a-zA-Z0-9_-])", m.group(1))
+    )
+
+
+# ── Build / commit ───────────────────────────────────────────────────
+
+
+def maybe_format():
+    if shutil.which("nixpkgs-fmt"):
+        subprocess.run(["nixpkgs-fmt", str(HOME_NIX)], check=False)
+
+
+def lock_input(name):
+    print(f"\U0001f512 Locking flake input '{name}'\u2026")
+    r = subprocess.run(["nix", "flake", "update", name], cwd=str(HM_DIR))
+    if r.returncode != 0:
+        raise RuntimeError(f"nix flake lock failed for '{name}'")
+
+
+def hm_switch():
+    print("\U0001f504 Building & switching\u2026")
+    r = subprocess.run(
+        [
+            "nix", "run", "github:nix-community/home-manager", "--",
+            "--flake", str(HM_DIR), "switch",
+        ],
+    )
+    if r.returncode != 0:
+        raise RuntimeError("home-manager switch failed")
+
+
+def git_commit(msg):
+    diff = subprocess.run(
+        ["git", "-C", str(HM_DIR), "diff", "--quiet"],
+        capture_output=True,
+    )
+    if diff.returncode == 0:
+        # Also check for untracked files (e.g. new flake.lock)
+        status = subprocess.run(
+            ["git", "-C", str(HM_DIR), "status", "--porcelain"],
+            capture_output=True, text=True,
+        )
+        if not status.stdout.strip():
+            print("\u2139\ufe0f  No changes to commit.")
+            return
+    subprocess.run(["git", "-C", str(HM_DIR), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(HM_DIR), "commit", "-m", msg], check=True)
+    print(f"\u2705 Committed: {msg}")
+
+
+def check_prereqs():
+    if not HOME_NIX.exists():
+        die(f"{HOME_NIX} not found")
+    r = subprocess.run(
+        ["git", "-C", str(HM_DIR), "rev-parse", "--is-inside-work-tree"],
+        capture_output=True,
+    )
+    if r.returncode != 0:
+        die(
+            f"{HM_DIR} is not a Git repo. "
+            f"Run: (cd {HM_DIR} && git init && git add . && git commit -m 'init')"
+        )
+
+
+# ── Workflows ────────────────────────────────────────────────────────
+
+
+def do_search(terms):
+    print(f"\U0001f50d nix search nixpkgs {' '.join(terms)}")
+    subprocess.run(["nix", "search", "nixpkgs"] + terms)
+
+
+def do_add_nixpkgs(packages):
+    check_prereqs()
+    content = HOME_NIX.read_text()
+    with_pkgs = detect_with_pkgs(content)
+
+    with TransactionalEdit(HOME_NIX):
+        added = []
+        for pkg in packages:
+            if pkg_already_present(content, pkg, with_pkgs):
+                print(f"\u2705 '{pkg}' already in home.packages")
+            else:
+                entry = pkg if with_pkgs else f"pkgs.{pkg}"
+                content = insert_into_packages(content, entry)
+                print(f"\u2795 Added '{pkg}'")
+                added.append(pkg)
+        if not added:
+            return
+        HOME_NIX.write_text(content)
+        maybe_format()
+        hm_switch()
+
+    git_commit(f"hm-add: add {' '.join(added)}")
+
+
+def do_add_flake(ref, name_override):
+    check_prereqs()
+    if not FLAKE_NIX.exists():
+        die(f"{FLAKE_NIX} not found \u2014 flake inputs need a flake-based setup")
+
+    url, attr = parse_flake_ref(ref)
+    name = name_override or derive_input_name(url)
+    pkg_expr = f"{name}.packages.${{pkgs.system}}.{attr}"
+
+    fc = FLAKE_NIX.read_text()
+    hc = HOME_NIX.read_text()
+
+    input_is_new = not flake_input_exists(fc, name)
+
+    # If the input already exists, just add the package expression
+    if not input_is_new:
+        if pkg_expr in hc:
+            print(f"\u2705 {pkg_expr} already in home.packages")
+            return
+        print(f"\u2139\ufe0f  Input '{name}' already exists; adding package only")
+
+    backup_files = [HOME_NIX]
+    if input_is_new:
+        backup_files.extend([FLAKE_NIX, FLAKE_LOCK])
+
+    with TransactionalEdit(*backup_files):
+        if input_is_new:
+            fc = add_flake_input(fc, name, url)
+            fc = add_outputs_arg(fc, name)
+            fc = add_extra_special_arg(fc, name)
+            FLAKE_NIX.write_text(fc)
+            print(f"\u2795 Added input '{name}' \u2192 {url}")
+
+        if not home_nix_has_arg(hc, name):
+            hc = add_home_nix_arg(hc, name)
+        hc = insert_into_packages(hc, pkg_expr)
+        HOME_NIX.write_text(hc)
+        print(f"\u2795 Added {pkg_expr}")
+
+        maybe_format()
+        if input_is_new:
+            lock_input(name)
+        hm_switch()
+
+    git_commit(f"hm-add: add {name} from {url}")
+
+
+# ── CLI ──────────────────────────────────────────────────────────────
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        return
+
+    # --search / -s / search
+    if args[0] in ("--search", "-s", "search"):
+        if len(args) < 2:
+            die("Provide a search term")
+        do_search(args[1:])
+        return
+
+    # --flake <url>#<attr> [--as <name>]
+    if args[0] == "--flake":
+        if len(args) < 2:
+            die("Provide a flake ref, e.g. github:owner/repo#attr")
+        ref = args[1]
+        name_override = None
+        if "--as" in args:
+            idx = args.index("--as")
+            if idx + 1 >= len(args):
+                die("--as requires a name")
+            name_override = args[idx + 1]
+        do_add_flake(ref, name_override)
+        return
+
+    # Default: nixpkgs packages
+    do_add_nixpkgs(args)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        die("Interrupted")
+    except RuntimeError as e:
+        die(str(e))
