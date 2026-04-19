@@ -21,26 +21,40 @@ for arg in "$@"; do
   esac
 done
 
-# Link all scripts from repo's .bin/ to ~/.bin/
+# Link a per-file set from a source dir into a target dir, but skip when the
+# target dir already resolves to the source dir (e.g. ~/.bin -> dotfiles/.bin).
+# Without this guard, ln -sf trashes the in-repo symlinks by replacing them
+# with self-loops via the parent symlink.
+link_dir_contents() {
+  local src_dir="$1"
+  local dst_dir="$2"
+  local file_test="$3"  # '-e' or '-f' to filter sources
+
+  mkdir -p "$dst_dir"
+  local src_real dst_real
+  src_real="$(readlink -f "$src_dir")"
+  dst_real="$(readlink -f "$dst_dir" 2>/dev/null || echo "$dst_dir")"
+  if [[ "$src_real" == "$dst_real" ]]; then
+    echo "  $dst_dir already resolves to $src_real, skipping per-file links"
+    return 0
+  fi
+
+  for script in "$src_dir"/*; do
+    [ "$file_test" "$script" ] || continue
+    local name target
+    name="$(basename "$script")"
+    target="$dst_dir/$name"
+    ln -sf "$script" "$target"
+    echo "  Linked $name"
+  done
+}
+
 echo "=== Installing scripts to ~/.bin/ ==="
-mkdir -p "$HOME/.bin"
-for script in "$ROOT/.bin/"*; do
-  [ -e "$script" ] || continue
-  name="$(basename "$script")"
-  ln -sf "$script" "$HOME/.bin/$name"
-  echo "  Linked $name"
-done
+link_dir_contents "$ROOT/.bin" "$HOME/.bin" -e
 echo "Done. Make sure ~/.bin is in your PATH."
 
-# Install Nautilus scripts
 echo "=== Installing Nautilus scripts ==="
-mkdir -p "$HOME/.local/share/nautilus/scripts"
-for script in "$ROOT/.local/share/nautilus/scripts/"*; do
-  [ -f "$script" ] || continue
-  name="$(basename "$script")"
-  ln -sf "$script" "$HOME/.local/share/nautilus/scripts/$name"
-  echo "  Linked $name"
-done
+link_dir_contents "$ROOT/.local/share/nautilus/scripts" "$HOME/.local/share/nautilus/scripts" -f
 
 # Install Claude Code configuration
 "$ROOT/scripts/install/install-claude-config"
