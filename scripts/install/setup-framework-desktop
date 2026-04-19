@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# setup-framework-desktop: One-off desktop + gaming setup for framework0
+#
+# Sets up a dual-mode boot configuration:
+#   "Ubuntu - Server (headless)"     → multi-user.target
+#   "Ubuntu - Desktop (GNOME + i3)"  → graphical.target
+#
+# Must be run as root:
+#   sudo ./scripts/install/setup-framework-desktop
+#
+# After running, as your regular user:
+#   ./scripts/install/install-all --with-gnome-i3
+#
+# Source: dotfiles/scripts/install/setup-framework-desktop
+# Claude session: 3735a547-8244-4da9-90fd-4bd8a0f6dd04
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "ERROR: This script must be run as root." >&2
+    echo "Usage: sudo $0" >&2
+    exit 1
+fi
+
+# --- Packages ---
+
+echo "=== Enabling 32-bit architecture (for Steam/Proton) ==="
+dpkg --add-architecture i386
+
+echo "=== Updating package lists ==="
+apt-get update
+
+echo "=== Installing desktop packages ==="
+apt-get install -y \
+    gnome-flashback \
+    i3 \
+    i3status \
+    redshift \
+    geoclue-2.0
+
+echo "=== Installing Vulkan drivers and gaming support ==="
+apt-get install -y \
+    mesa-vulkan-drivers \
+    mesa-vulkan-drivers:i386 \
+    libvulkan1 \
+    libvulkan1:i386 \
+    vulkan-tools \
+    gamemode
+
+# Optional packages that may not be in the repos.
+# kupfer: application launcher (alternative: rofi, dmenu)
+# xiccd: X11 colord bridge for color management
+echo "=== Installing optional packages (non-fatal) ==="
+for pkg in kupfer xiccd; do
+    if apt-cache show "$pkg" >/dev/null 2>&1; then
+        apt-get install -y "$pkg" || echo "WARNING: Failed to install $pkg, skipping"
+    else
+        echo "WARNING: $pkg not found in repos, skipping"
+    fi
+done
+
+# Steam is a large download; uncomment if wanted:
+# apt-get install -y steam-installer
+
+# --- GNOME+i3 session files (system-level only) ---
+# User-level files (i3 config, user session override) are handled by
+# install-gnome-i3 / install-all --with-gnome-i3, run as regular user.
+
+echo "=== Installing GNOME+i3 session files (system-level) ==="
+
+install -Dm644 \
+    "$ROOT/usr/share/gnome-session/sessions/gnome-plus-i3.session" \
+    /usr/share/gnome-session/sessions/gnome-plus-i3.session
+
+install -Dm644 \
+    "$ROOT/usr/share/xsessions/gnome-plus-i3.desktop" \
+    /usr/share/xsessions/gnome-plus-i3.desktop
+
+install -Dm644 \
+    "$ROOT/usr/lib/systemd/user/gnome-session@gnome-plus-i3.target.d/session.conf" \
+    /usr/lib/systemd/user/gnome-session@gnome-plus-i3.target.d/session.conf
+
+# --- GRUB boot menu ---
+
+echo "=== Configuring GRUB boot menu ==="
+
+install -Dm755 "$ROOT/etc/grub.d/09_boot_modes" /etc/grub.d/09_boot_modes
+
+# Back up GRUB defaults before modifying
+cp /etc/default/grub "/etc/default/grub.bak.$(date +%Y%m%d%H%M%S)"
+
+# Show GRUB menu with 5-second timeout (was hidden with 0s timeout)
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=5/' /etc/default/grub
+sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=menu/' /etc/default/grub
+
+if ! grep -q '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
+    sed -i '/^GRUB_TIMEOUT=/a GRUB_TIMEOUT_STYLE=menu' /etc/default/grub
+fi
+
+update-grub
+
+echo ""
+echo "=== Done ==="
+echo ""
+echo "GRUB menu will now show on boot (5s timeout):"
+echo "  1. Ubuntu - Server (headless)"
+echo "  2. Ubuntu - Desktop (GNOME + i3)"
+echo "  3. Ubuntu  (standard entry, uses systemd default target)"
+echo ""
+echo "Next steps:"
+echo "  1. As your regular user, run:"
+echo "       cd $ROOT && ./scripts/install/install-all --with-gnome-i3"
+echo "  2. Reboot and pick your boot mode from GRUB"
+echo "  3. On Desktop boot, select 'GNOME + i3' from the GDM session picker"

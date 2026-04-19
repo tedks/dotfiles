@@ -1,0 +1,71 @@
+#!/bin/sh
+# 09_boot_modes - Generate Desktop and Server GRUB menu entries
+#
+# When installed to /etc/grub.d/ and update-grub is run, this generates
+# two top-level boot entries that explicitly set the systemd target:
+#
+#   "Ubuntu - Server (headless)"      → multi-user.target
+#   "Ubuntu - Desktop (GNOME + i3)"   → graphical.target
+#
+# The standard Ubuntu entries from 10_linux still appear below these,
+# along with "Advanced options" (recovery mode, older kernels).
+#
+# Source: dotfiles/etc/grub.d/09_boot_modes
+# Installed by: scripts/install/setup-framework-desktop
+# Claude session: 3735a547-8244-4da9-90fd-4bd8a0f6dd04
+set -e
+
+prefix="/usr"
+datarootdir="${prefix}/share"
+. "${datarootdir}/grub/grub-mkconfig_lib"
+
+# Find the latest installed kernel (version-sorted)
+latest_version=$(ls -1 /boot/vmlinuz-* 2>/dev/null | sort -V | tail -1 | sed 's,.*/vmlinuz-,,')
+[ -n "$latest_version" ] || exit 0
+
+# Verify matching initrd exists
+[ -f "/boot/initrd.img-${latest_version}" ] || exit 0
+
+# Make paths relative to GRUB root (handles separate /boot partition)
+rel_dirname=$(make_system_path_relative_to_its_root /boot)
+rel_vmlinuz="${rel_dirname}/vmlinuz-${latest_version}"
+rel_initrd="${rel_dirname}/initrd.img-${latest_version}"
+
+# Determine root device for the linux command line.
+# Use device path for LVM (UUID isn't resolvable early in boot);
+# use UUID otherwise. Matches 10_linux behavior.
+if [ "x${GRUB_DEVICE_UUID}" = "x" ] \
+    || [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ] \
+    || ! test -e "/dev/disk/by-uuid/${GRUB_DEVICE_UUID}" \
+    || [ "$(grub-probe -t abstraction --device ${GRUB_DEVICE} | sed -e 's,.*\(lvm\).*,\1,')" = "lvm" ]; then
+    LINUX_ROOT_DEVICE="${GRUB_DEVICE}"
+else
+    LINUX_ROOT_DEVICE="UUID=${GRUB_DEVICE_UUID}"
+fi
+
+# Kernel command line args (from /etc/default/grub)
+args="${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
+
+# Boot device: where vmlinuz lives (may differ from root on separate /boot)
+boot_device_id="$(grub-probe --target=device /boot)"
+
+generate_entry() {
+    title="$1"
+    unit="$2"
+    entry_id="$3"
+
+    echo "menuentry '${title}' --class ubuntu --class gnu-linux --class gnu --class os \$menuentry_id_option '${entry_id}' {"
+    echo "	recordfail"
+    echo "	load_video"
+    echo "	gfxmode \$linux_gfx_mode"
+
+    # Load filesystem/device modules and set GRUB root to boot device
+    prepare_grub_to_access_device "${boot_device_id}" | grub_add_tab
+
+    echo "	linux ${rel_vmlinuz} root=${LINUX_ROOT_DEVICE} ro ${args} systemd.unit=${unit}"
+    echo "	initrd ${rel_initrd}"
+    echo "}"
+}
+
+generate_entry "Ubuntu - Server (headless)" "multi-user.target" "boot-mode-server"
+generate_entry "Ubuntu - Desktop (GNOME + i3)" "graphical.target" "boot-mode-desktop"
