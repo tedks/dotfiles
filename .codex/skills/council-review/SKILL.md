@@ -1,1 +1,0 @@
-../../../.claude/skills/council-review/SKILL.md
