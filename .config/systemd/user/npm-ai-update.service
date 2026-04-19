@@ -1,0 +1,12 @@
+[Unit]
+Description=Update AI npm package version pins
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.bin/npm-ai-update
+Environment=PATH=%h/.nix-profile/bin:%h/.npm-global/bin:%h/.bin:%h/.local/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=%h
+StandardOutput=append:%h/.local/share/npm-ai-update.log
+StandardError=append:%h/.local/share/npm-ai-update.log
